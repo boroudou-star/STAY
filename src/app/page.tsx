@@ -194,7 +194,7 @@ function HeroCard() {
             <span className="h-1.5 w-1.5 rounded-full bg-sun" /> Grad season open
           </Badge>
         </div>
-        <div className="relative mt-10 mb-14 h-3">
+        <div className="relative mb-16 mt-12 h-3">
           <div className="absolute inset-y-0 left-0 w-[34%] rounded-full bg-teal" />
           <div className="absolute inset-y-0 left-[35%] w-[24%] rounded-full bg-blue" />
           <div className="absolute inset-y-0 left-[60%] w-[19%] rounded-full bg-violet" />
@@ -226,7 +226,7 @@ function HeroCard() {
           ))}
         </div>
       </div>
-      <div className="absolute -bottom-5 left-6 -rotate-3 rounded-2xl border border-line bg-card px-4 py-3 shadow-[var(--shadow-lift)]">
+      <div className="absolute -bottom-12 left-6 -rotate-3 rounded-2xl border border-line bg-card px-4 py-3 shadow-[var(--shadow-lift)]">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-teal">This week</div>
         <div className="text-[13.5px] font-medium">☕ Message 2 UCL alumni in ML</div>
       </div>

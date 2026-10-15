@@ -1,4 +1,4 @@
-import { TRACK_MAP } from "@/data/careers";
+import { roleForTrack, TRACK_MAP } from "@/data/careers";
 import type { CareerTrack, NetworkingRecommendation, UserContact, UserProfile } from "@/lib/types";
 
 /**
@@ -29,7 +29,7 @@ export function coffeeChatRecommendations(p: UserProfile): NetworkingRecommendat
   const uni = uniTerm(p);
   const subject = subjectTerm(p);
   const city = p.locationPreferences.find((l) => !/remote/i.test(l)) ?? "London";
-  const role1 = p.preferredRoles[0] || primary.searchTitles[0];
+  const role1 = roleForTrack(primary.id, p.preferredRoles);
   const role2 = secondary.searchTitles[0] !== role1.toLowerCase() ? secondary.searchTitles[0] : secondary.searchTitles[1] ?? primary.searchTitles[1];
   const companyType = p.companyTypes.find((c) => c !== "Any") ?? "Startups / scale-ups";
   const companyWord = /startup/i.test(companyType) ? "startup" : /big tech/i.test(companyType) ? "big tech" : companyType.toLowerCase();
@@ -115,7 +115,7 @@ export function outreachTemplate(p: UserProfile, rec: NetworkingRecommendation |
     : contact?.role
       ? `I'd love to hear about your work as ${/^[aeiou]/i.test(contact.role) ? "an" : "a"} ${contact.role}${contact.company ? ` at ${contact.company}` : ""}.`
       : rec
-        ? `I'd love to hear about your path into ${rec.role.toLowerCase()} work.`
+        ? `I'd love to hear how you got into your role as ${/^[aeiou]/i.test(rec.role) ? "an" : "a"} ${rec.role}.`
         : "I'd love to hear about your career path.";
   const sameUni = (rec?.universityConnection || contact) && uni ? ` As a fellow ${uni} person, ` : " ";
   return `Hi ${who}, I'm a ${stage} interested in ${goal}. ${hook}${sameUni}I'd be grateful for a brief 15-minute chat if you ever have time — no worries at all if not. Thank you!${first ? `\n\n${first}` : ""}`

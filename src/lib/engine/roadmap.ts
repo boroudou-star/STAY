@@ -1,4 +1,4 @@
-import { TRACK_MAP } from "@/data/careers";
+import { roleForTrack, TRACK_MAP } from "@/data/careers";
 import type { Priority, RoadmapPhase, RoadmapTask, ScoredEvent, ScoredOpportunity, TaskCategory, UserProfile } from "@/lib/types";
 import { addDays, addMonths, daysBetween, monthsBetween, parseISO, toISO, todayISO } from "@/lib/utils";
 import { analyseSkills, displaySkill } from "./skills";
@@ -33,7 +33,12 @@ export function computeHorizon(p: UserProfile, today = todayISO()): Horizon {
     return { start: today, end: capped, monthsLeft: monthsBetween(today, p.graduationDate), anchorLabel: "graduation", anchorDate: p.graduationDate };
   }
   // Graduate: plan to the earliest of visa end / target start window, min 6 months, max 18
-  const visaEnd = !p.visa.skipped ? (p.visa.expiryDate ?? estimateGraduateRoute(p)?.estimatedExpiry) : undefined;
+  let visaEnd = !p.visa.skipped ? (p.visa.expiryDate ?? estimateGraduateRoute(p)?.estimatedExpiry) : undefined;
+  if (!visaEnd && !p.visa.skipped && p.visa.visaType === "graduate") {
+    // Estimate: Graduate visa granted around course completion (2 years before 1 Jan 2027, 18 months after; PhD 3 years)
+    const months = p.degreeLevel === "phd" ? 36 : p.graduationDate >= "2027-01-01" ? 18 : 24;
+    visaEnd = addMonths(p.graduationDate, months);
+  }
   let anchorDate = addMonths(today, 12);
   let anchorLabel = "12-month plan";
   if (visaEnd && visaEnd > today) {
@@ -136,7 +141,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
   const h = computeHorizon(p, today);
   const skills = analyseSkills(p);
   const track = TRACK_MAP[p.careerGoals[0] ?? "exploring"];
-  const roleName = p.preferredRoles[0] || track.primaryRole;
+  const roleName = roleForTrack(track.id, p.preferredRoles);
   const needsSponsor = !p.visa.skipped && p.visa.needsSponsorship === "yes";
   const gradYear = parseISO(p.graduationDate).getFullYear();
   const isStudent = p.studyStatus === "student";
@@ -410,6 +415,40 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       deadline: at(30),
       priority: "high",
       category: "interviews",
+    });
+    drafts.push({
+      templateId: "grad-assessment-centres",
+      title: "Prepare for assessment centres and final rounds",
+      description: "Practise presenting a project in 5 minutes, group exercises and case questions.",
+      deadline: clamp(addDays(today, Math.round(daysBetween(today, h.end) * 0.35))),
+      priority: "high",
+      category: "interviews",
+    });
+    drafts.push({
+      templateId: "grad-review-month3",
+      title: "Review your pipeline: response rates, interviews, what to change",
+      description: "If applications aren't converting, adjust your CV, target roles or company types — and ask a coffee-chat contact for feedback.",
+      deadline: clamp(addDays(today, Math.round(daysBetween(today, h.end) * 0.45))),
+      priority: "medium",
+      category: "applications",
+    });
+    drafts.push({
+      templateId: "grad-offer-check",
+      title: needsSponsor ? "Before accepting: confirm sponsorship and start date in writing" : "Compare offers on growth, salary and team",
+      description: needsSponsor
+        ? "Ask the employer to confirm the specific role can be sponsored and when the Certificate of Sponsorship would be issued."
+        : "Use the priorities you set during onboarding to compare.",
+      deadline: clamp(addDays(today, Math.round(daysBetween(today, h.end) * 0.62))),
+      priority: "medium",
+      category: needsSponsor ? "visa" : "applications",
+    });
+    drafts.push({
+      templateId: "grad-skill-refresh",
+      title: "Ship a second portfolio project or certification",
+      description: "Keeps your profile current while you search and gives you fresh interview stories.",
+      deadline: clamp(addDays(today, Math.round(daysBetween(today, h.end) * 0.8))),
+      priority: "low",
+      category: "projects",
     });
     drafts.push({
       templateId: "grad-short-experience",

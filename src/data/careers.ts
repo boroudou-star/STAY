@@ -317,3 +317,17 @@ export const UK_CITIES = ["London", "Manchester", "Cambridge", "Oxford", "Edinbu
 export const COMPANY_TYPES = ["Big tech", "Startups / scale-ups", "Consultancies", "Banks & finance", "Public sector / NHS", "Research labs", "Any"];
 export const ROLE_TYPES = ["Graduate scheme", "Summer internship", "Off-cycle internship", "Research placement", "Entry-level job", "Part-time / project"];
 export const UNIVERSITIES = ["UCL", "Other"];
+
+/** Use the user's preferred role only if it plausibly belongs to their main track; otherwise the track's typical role. */
+export function roleForTrack(track: CareerTrack, preferredRoles: string[]) {
+  const info = TRACK_MAP[track];
+  const words = [...info.roles, ...info.searchTitles].join(" ").toLowerCase();
+  const match = preferredRoles.find((r) =>
+    r
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter((w) => w.length > 3 && !["junior", "graduate", "senior", "intern"].includes(w))
+      .some((w) => words.includes(w)),
+  );
+  return match ?? info.roles[0];
+}

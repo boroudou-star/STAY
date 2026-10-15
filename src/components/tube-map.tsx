@@ -41,7 +41,7 @@ export function TubeMap({
 
   return (
     <div className="scrollbar-none -mx-2 overflow-x-auto px-2">
-      <div className={cn("relative", compact ? "min-w-[560px] pb-10 pt-8" : "min-w-[720px] pb-14 pt-12")}>
+      <div className={cn("relative mx-10", compact ? "min-w-[560px] pb-10 pt-8" : "min-w-[680px] pb-2 pt-10")}>
         {/* month ticks */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-full">
           {ticks.map((t) => (
@@ -90,7 +90,7 @@ export function TubeMap({
           {/* you are here */}
           <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: "0%" }}>
             <div className="h-5 w-5 rounded-full border-[3px] border-white bg-sun animate-pulse-dot shadow" />
-            <div className="absolute left-1/2 top-6 -translate-x-1/2 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 text-[10.5px] font-semibold text-white">You are here</div>
+            <div className="absolute -left-2 top-6 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 text-[10.5px] font-semibold text-white">You are here</div>
           </div>
 
           {/* anchor flag */}
@@ -109,7 +109,7 @@ export function TubeMap({
 
         {/* phase labels */}
         {!compact && (
-          <div className="relative mt-10 h-12">
+          <div className="relative mt-9 h-11">
             {phases.map((ph) => (
               <button
                 key={ph.id}

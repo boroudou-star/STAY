@@ -1,7 +1,7 @@
 import { TRACK_MAP } from "@/data/careers";
 import type { RoadmapTask, ScoredEvent, ScoredOpportunity, UserProfile } from "@/lib/types";
 import { daysBetween, todayISO } from "@/lib/utils";
-import { computeHorizon } from "./roadmap";
+import { computeHorizon, topPriorities } from "./roadmap";
 import { analyseSkills, displaySkill } from "./skills";
 
 export interface InsightInput {
@@ -16,7 +16,7 @@ export interface InsightInput {
 export function insightFacts({ profile: p, tasks, opportunities, events, today = todayISO() }: InsightInput) {
   const h = computeHorizon(p, today);
   const skills = analyseSkills(p);
-  const urgent = tasks.filter((t) => t.status !== "completed" && daysBetween(today, t.deadline) <= 14).slice(0, 3);
+  const urgent = topPriorities(tasks, 3, today).filter((t) => daysBetween(today, t.deadline) <= 21);
   return {
     today,
     name: p.name,

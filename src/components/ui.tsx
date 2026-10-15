@@ -280,7 +280,7 @@ export function Tabs<T extends string>({ value, onChange, items }: { value: T; o
           aria-selected={value === it.value}
           onClick={() => onChange(it.value)}
           className={cn(
-            "rounded-xl px-3.5 py-1.5 text-[13px] font-medium transition-all",
+            "whitespace-nowrap rounded-xl px-3.5 py-1.5 text-[13px] font-medium transition-all",
             value === it.value ? "bg-card text-ink shadow-[var(--shadow-soft)]" : "text-muted hover:text-ink",
           )}
         >

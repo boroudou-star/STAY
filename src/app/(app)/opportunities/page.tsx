@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { liveJobSearches } from "@/data/opportunities";
-import { SKILL_GUIDES, canonicalSkill, DEFAULT_GUIDE, TRACK_MAP } from "@/data/careers";
+import { SKILL_GUIDES, canonicalSkill, DEFAULT_GUIDE, roleForTrack, TRACK_MAP } from "@/data/careers";
 import { Badge, Button, Card, Chip, DemoBadge, EmptyState, Input, LinkButton, Modal, PageHeader, Tabs } from "@/components/ui";
 import { OPPORTUNITY_TYPE_LABEL } from "@/lib/engine/opportunities";
 import { useDerived } from "@/lib/hooks";
@@ -40,7 +40,7 @@ export default function OpportunitiesPage() {
   }, [d.opportunities, view, savedOpps, appliedOpps, showIneligible, type, q]);
   const hiddenIneligible = d.opportunities.filter((s) => s.eligible === false).length;
   const goal = TRACK_MAP[d.profile.careerGoals[0] ?? "exploring"];
-  const keyword = d.profile.preferredRoles[0] || goal.searchTitles[0];
+  const keyword = roleForTrack(goal.id, d.profile.preferredRoles);
   const city = d.profile.locationPreferences.find((l) => !/remote/i.test(l)) ?? "London";
 
   return (
