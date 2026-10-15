@@ -1,26 +1,118 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/bricolage-grotesque";
 
+/*
+  STAY design tokens.
+  Warm paper background, deep navy ink, teal + periwinkle accents,
+  and one warm "sunrise" pop used sparingly for urgency and delight.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #faf8f4;
+  --paper-2: #f3f0e9;
+  --card: #ffffff;
+  --ink: #0f1b3d;
+  --ink-2: #3c4766;
+  --muted: #6b7390;
+  --line: #e7e3da;
+  --teal: #0f9d8a;
+  --teal-soft: #dff4ef;
+  --blue: #5b7cfa;
+  --blue-soft: #e6ecff;
+  --sun: #ff7a59;
+  --sun-soft: #ffe9e1;
+  --violet: #8b5cf6;
+  --violet-soft: #efe8ff;
+  --lime: #c6f36d;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --color-blue: var(--blue);
+  --color-blue-soft: var(--blue-soft);
+  --color-sun: var(--sun);
+  --color-sun-soft: var(--sun-soft);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-lime: var(--lime);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Inter Variable", ui-sans-serif, sans-serif;
+  --shadow-soft: 0 1px 2px rgb(15 27 61 / 0.04), 0 8px 24px -12px rgb(15 27 61 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(15 27 61 / 0.05), 0 18px 40px -16px rgb(15 27 61 / 0.22);
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-pulse-dot: pulse-dot 2s ease-in-out infinite;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(255 122 89 / 0.45);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgb(255 122 89 / 0);
+    }
   }
 }
 
+html {
+  background: var(--paper);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: var(--lime);
+  color: var(--ink);
+}
+
+/* Subtle dotted "map paper" texture for hero areas */
+.map-paper {
+  background-image: radial-gradient(rgb(15 27 61 / 0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
