@@ -1,5 +1,6 @@
 import { roleForTrack, TRACK_MAP } from "@/data/careers";
-import type { Activity, ContactStatus, Priority, RoadmapPhase, RoadmapTask, ScoredEvent, ScoredOpportunity, TaskCategory, UserProfile } from "@/lib/types";
+import type { Activity, Challenge, ContactStatus, Priority, RoadmapPhase, RoadmapTask, ScoredEvent, ScoredOpportunity, StartingPoint, TaskCategory, UserProfile } from "@/lib/types";
+import { challengeLabel, joinList, paceFactor, withDefaults } from "@/lib/profile";
 import { addDays, addMonths, daysBetween, monthsBetween, parseISO, toISO, todayISO } from "@/lib/utils";
 import { analyseSkills, displaySkill } from "./skills";
 import { estimateGraduateRoute } from "./visa";
@@ -27,7 +28,7 @@ const REACHED_OUT: ContactStatus[] = ["contacted", "replied", "chat_scheduled", 
 export function activityStats(a: Activity) {
   const statuses = Object.values(a.contacts).map((c) => c.status);
   return {
-    applied: Object.keys(a.appliedOpps).length,
+    applied: Object.keys(a.appliedOpps).length + (a.externalApplications ?? 0),
     saved: a.savedOpps.length,
     reachedOut: statuses.filter((s) => REACHED_OUT.includes(s)).length,
     chatsDone: statuses.filter((s) => s === "completed").length,
@@ -150,7 +151,31 @@ export function phaseForDate(phases: RoadmapPhase[], iso: string) {
   return phases.find((ph) => iso >= ph.start && iso <= ph.end) ?? (iso < phases[0]?.start ? phases[0] : phases[phases.length - 1]);
 }
 
+/** Starting-point answers that mean a foundation task is already done. */
+export const START_TEMPLATES: Partial<Record<keyof StartingPoint, string>> = {
+  cvReady: "cv-project-led",
+  linkedinReady: "linkedin-refresh",
+  inSocieties: "societies-join",
+  reachedOut: "coffee-first-two",
+};
+
+/** Which tasks each challenge pulls forward. */
+const CHALLENGE_MATCH: Record<Challenge, (d: Draft) => boolean> = {
+  experience: (d) => d.category === "projects" || ["alt-experience", "grad-short-experience", "backup-research"].includes(d.templateId),
+  direction: (d) => ["insight-habit", "explore-paths", "coffee-first-two", "coffee-three-done"].includes(d.templateId),
+  networking: (d) => d.category === "networking" || d.category === "events",
+  applications: (d) => d.category === "applications" || d.category === "cv",
+  interviews: (d) => d.category === "interviews",
+  visa: (d) => d.category === "visa",
+  skills: (d) => d.category === "skills" && d.templateId !== "insight-habit",
+  time: (d) => d.templateId === "weekly-slot",
+};
+
+const UP: Record<Priority, Priority> = { low: "medium", medium: "high", high: "high", urgent: "urgent" };
+
 interface Draft {
+  /** Already done according to the user's starting point or activity */
+  done?: boolean;
   templateId: string;
   title: string;
   description: string;
@@ -169,7 +194,13 @@ function bumpPriority(d: Draft, today: string): Draft {
 }
 
 export function generateDrafts(ctx: RoadmapContext): Draft[] {
-  const { profile: p, today } = ctx;
+  const { today } = ctx;
+  const p = withDefaults(ctx.profile);
+  const sp = p.startingPoint!;
+  const targets = p.targetCompanies!;
+  const t1 = targets[0];
+  const hours = p.weeklyHours!;
+  const pace = paceFactor(hours);
   const h = computeHorizon(p, today);
   const skills = analyseSkills(p);
   const track = TRACK_MAP[p.careerGoals[0] ?? "exploring"];
@@ -178,12 +209,14 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
   const gradYear = parseISO(p.graduationDate).getFullYear();
   const isStudent = p.studyStatus === "student";
   const clamp = (iso: string) => (iso < today ? addDays(today, 3) : iso > h.end ? h.end : iso);
-  const at = (days: number) => clamp(addDays(today, days));
+  // Deadlines stretch or tighten with the hours a week the user has
+  const at = (days: number) => clamp(addDays(today, Math.max(3, Math.round(days * pace))));
   const drafts: Draft[] = [];
 
   // ---- Foundations (everyone) ----
   drafts.push({
     templateId: "cv-project-led",
+    done: sp.cvReady,
     title: "Rewrite your CV around 2–3 strongest projects",
     description: `Make it one page and lead with outcomes (what you built, how you measured it). Tailor the top section to ${roleName} roles.`,
     deadline: at(7),
@@ -193,16 +226,18 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
   });
   drafts.push({
     templateId: "linkedin-refresh",
+    done: sp.linkedinReady,
     title: "Refresh LinkedIn: headline, About and featured projects",
-    description: `Use a headline like "${p.degree || "Student"} @ ${p.university || "university"} | ${track.label}". Pin your best GitHub/project link.`,
+    description: `Use a headline like "${p.degree || "Student"} @ ${p.university || "university"} | ${track.label}". ${["ai", "software", "data", "research", "engineering"].includes(track.id) ? "Pin your best GitHub or project link." : "Feature your strongest project, society role or case competition."}`,
     deadline: at(10),
     priority: "medium",
     category: "networking",
   });
   drafts.push({
     templateId: "coffee-first-two",
+    done: sp.reachedOut,
     title: "Send 2 coffee-chat messages",
-    description: "Use the Coffee Chats page to find people in your target roles and send short, personal notes. Aim for a 15-minute call.",
+    description: `Use the Coffee Chats page to find people in ${t1 ? `${joinList(targets.slice(0, 2))} or other ` : ""}${roleName} roles and send short, personal notes. Aim for a 15-minute call.`,
     deadline: at(14),
     priority: "high",
     category: "networking",
@@ -281,6 +316,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     if (p.university) {
       drafts.push({
         templateId: "societies-join",
+        done: sp.inSocieties,
         title: `Join 2 societies linked to ${track.noun}`,
         description: `Look for: ${track.societies.join(", ")}. Society workshops and hackathons often matter as much as official careers events.`,
         deadline: at(10),
@@ -426,8 +462,8 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     // ---- Graduates ----
     drafts.push({
       templateId: "grad-rhythm",
-      title: "Set a weekly rhythm: 5 tailored applications per week",
-      description: "Block two sessions a week. Track every application on the Opportunities page.",
+      title: `Set a weekly rhythm: ${Math.min(8, Math.max(2, Math.round(hours / 1.5)))} tailored applications per week`,
+      description: `That fits the ${hours} hours a week you have. Block two sessions a week and track every application on the Opportunities page.`,
       deadline: at(7),
       priority: "urgent",
       category: "applications",
@@ -521,6 +557,58 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     }
   }
 
+  // ---- Personal: target companies, starting point, challenges ----
+  if (t1) {
+    drafts.push({
+      templateId: "target-research",
+      title: `Research ${joinList(targets.slice(0, 2))}: graduate roles, dates and what they look for`,
+      description: `Check ${targets.length > 1 ? "their" : `${t1}'s`} careers pages for ${roleName} roles and when applications open, follow them in Industry Insights, and save any open roles in STAY so deadlines land on your roadmap.`,
+      deadline: at(14),
+      priority: "high",
+      category: "applications",
+    });
+  }
+  if (sp.cvReady) {
+    drafts.push({
+      templateId: "cv-tailor",
+      title: t1 ? `Tailor your CV for ${t1}` : `Tailor your CV for ${roleName} roles`,
+      description: `You already have a CV, so make the top third speak to ${t1 ? `${t1}'s ${roleName} roles` : `${roleName} roles`}: mirror the skills in their listings and lead with your most relevant project.`,
+      deadline: at(14),
+      priority: "medium",
+      category: "cv",
+    });
+  }
+  if (p.challenges!.includes("direction") || track.id === "exploring") {
+    drafts.push({
+      templateId: "explore-paths",
+      title: "Compare 2 career paths with one coffee chat each",
+      description: `Pick two directions you're weighing${p.careerGoals.length > 1 ? ` (for example ${TRACK_MAP[p.careerGoals[0]].noun} and ${TRACK_MAP[p.careerGoals[1]].noun})` : ""}. Ask each person what a normal week looks like and what they'd do differently.`,
+      deadline: at(21),
+      priority: "high",
+      category: "networking",
+    });
+  }
+  if (p.challenges!.includes("time") || hours <= 3) {
+    drafts.push({
+      templateId: "weekly-slot",
+      title: `Block a fixed ${hours <= 2 ? "1-hour" : `${Math.max(1, Math.round(hours / 2))}-hour`} STAY slot twice a week`,
+      description: "Put it in your calendar like a lecture. Small, regular sessions beat occasional long ones, and STAY will show the next task for each slot.",
+      deadline: at(3),
+      priority: "high",
+      category: "custom",
+    });
+  }
+  if (isStudent && needsSponsor && !drafts.some((d) => d.templateId === "sponsor-check")) {
+    drafts.push({
+      templateId: "sponsor-check",
+      title: t1 ? `Check whether ${joinList(targets.slice(0, 3))} can sponsor visas` : "Shortlist employers that can sponsor visas",
+      description: "Search the UK register of licensed sponsors. Being licensed doesn't mean every role is sponsored, so confirm with the employer for each vacancy.",
+      deadline: at(21),
+      priority: "medium",
+      category: "visa",
+    });
+  }
+
   // ---- Commercial awareness habit (everyone) ----
   drafts.push({
     templateId: "insight-habit",
@@ -568,12 +656,13 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
   }
   // Applied or saved somewhere specific → practise for that company
   const target = ctx.opportunities.find((s) => act.appliedOpps[s.opportunity.id]) ?? ctx.opportunities.find((s) => act.savedOpps.includes(s.opportunity.id));
-  if (target) {
+  const mockCompany = target?.opportunity.company ?? t1;
+  if (mockCompany) {
     drafts.push({
       templateId: "mock-company",
-      title: `Practise a company mock interview for ${target.opportunity.company}`,
+      title: `Practise a company mock interview for ${mockCompany}`,
       description: "Interview Prep → Mock interview → Company. Includes 'Why this company?' and commercial-awareness questions.",
-      deadline: at(st.applied ? 7 : 14),
+      deadline: at(st.applied ? 7 : target ? 14 : 30),
       priority: st.applied ? "high" : "medium",
       category: "interviews",
     });
@@ -645,9 +734,34 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     });
   }
 
+  if (sp.interviewsDone >= 1) {
+    const ip = drafts.find((d) => d.templateId === "interviews-prep");
+    if (ip) ip.description = `You've already done ${sp.interviewsDone} real interview${sp.interviewsDone === 1 ? "" : "s"}. Write down the questions that went worst, then use STAY's mock interviews to practise exactly those. ${ip.description}`;
+  }
+
+  // Tasks STAY can already see are done (starting point or activity elsewhere)
+  for (const rule of AUTO_COMPLETE_RULES) {
+    const d = drafts.find((x) => x.templateId === rule.templateId);
+    if (d && rule.met(st)) d.done = true;
+  }
+
+  // What the user finds hardest moves up and comes sooner
+  const challenged = (d: Draft) => p.challenges!.filter((c) => CHALLENGE_MATCH[c]?.(d));
+  const personalised = drafts.map((d) => {
+    const hits = challenged(d);
+    if (!hits.length || d.done) return d;
+    const days = daysBetween(today, d.deadline);
+    return {
+      ...d,
+      priority: UP[d.priority],
+      deadline: days > 10 ? clamp(addDays(today, Math.round(days * 0.7))) : d.deadline,
+      description: `${d.description} Moved up because you said ${challengeLabel(hits[0])} is hard right now.`,
+    };
+  });
+
   // Urgency + increasing priority as the anchor approaches
   const nearAnchor = h.monthsLeft <= 6;
-  return drafts.map((d) => {
+  return personalised.map((d) => {
     let out = bumpPriority(d, today);
     if (nearAnchor && out.category === "applications" && out.priority === "high") out = { ...out, priority: "urgent" };
     return out;
@@ -701,7 +815,8 @@ export function mergeRoadmap(existing: RoadmapTask[], drafts: Draft[], now = new
         priority: d.priority,
         category: d.category,
         skill: d.skill,
-        status: "todo",
+        status: d.done ? "completed" : "todo",
+        completedAt: d.done ? now : undefined,
         origin: "engine",
         sourceOpportunityId: d.sourceOpportunityId,
         sourceEventId: d.sourceEventId,

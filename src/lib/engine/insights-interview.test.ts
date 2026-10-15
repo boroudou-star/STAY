@@ -24,7 +24,9 @@ describe("insights", () => {
   });
 
   it("maps career goals to insight areas", () => {
-    expect(defaultAreas(alex())).toEqual(["ai", "data", "tech"]);
+    // Main goal first, then the industries the user named (Alex named "Technology"), then other goals
+    expect(defaultAreas(alex())).toEqual(["ai", "tech", "data"]);
+    expect(defaultAreas({ ...alex(), careerGoals: ["consulting"], preferredIndustries: ["Healthcare"] })).toEqual(["consulting", "healthcare"]);
   });
 
   it("builds a stable daily brief with a company question", () => {

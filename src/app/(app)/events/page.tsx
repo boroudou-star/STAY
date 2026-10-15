@@ -9,6 +9,7 @@ import { Badge, Button, Card, Chip, DemoBadge, EmptyState, Input, Label, LinkBut
 import { EVENT_CATEGORY_LABEL } from "@/lib/engine/events";
 import { parseAnnouncementLocally } from "@/lib/engine/announcement";
 import { useDerived, useLiveEvents } from "@/lib/hooks";
+import { isUCL } from "@/lib/services/catalog";
 import { useStay } from "@/lib/store";
 import type { CareerEvent, CareerTrack, EventCategory, ScoredEvent } from "@/lib/types";
 import { addDays, cn, daysBetween, formatDate, parseISO, relativeDays, todayISO, uid } from "@/lib/utils";
@@ -40,7 +41,7 @@ export default function EventsPage() {
 
   const cats = Array.from(new Set(d.events.map((e) => e.event.category)));
   const uni = profile.university || "your university";
-  const sources = EVENT_SOURCES.filter((s) => s.university === profile.university);
+  const sources = isUCL(profile.university) ? EVENT_SOURCES.filter((s) => s.university === "UCL") : [];
 
   return (
     <div>
@@ -57,7 +58,7 @@ export default function EventsPage() {
 
       {/* Sources */}
       <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {profile.university === "UCL" ? (
+        {isUCL(profile.university) ? (
           sources.map((s) => (
             <a
               key={s.id}
@@ -83,12 +84,30 @@ export default function EventsPage() {
             </a>
           ))
         ) : (
-          <div className="rounded-2xl border border-line bg-card p-4 text-[13px] text-ink-2 md:col-span-2">
-            Curated sources are set up for UCL first. For {uni}, paste event announcements or links and STAY will extract and rank them.
+          <div className="rounded-2xl border border-line bg-card p-4 text-[13px] text-ink-2 md:col-span-2 xl:col-span-4">
+            <div className="font-semibold text-ink">Find events at {uni}</div>
+            <p className="mt-1">
+              STAY doesn&apos;t have a live feed for {uni} yet. Search below, then paste any announcement (careers service email, society Instagram post, event page) and STAY turns it into a ranked event with a reason it matters to you.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                [`${uni} careers events`, `${uni} careers service events`],
+                [`${TRACK_MAP[profile.careerGoals[0] ?? "exploring"].noun} society`, `${uni} ${TRACK_MAP[profile.careerGoals[0] ?? "exploring"].noun} society`],
+                ["Careers fairs", `${uni} careers fair ${new Date().getFullYear()}`],
+                ...(profile.targetCompanies ?? []).slice(0, 2).map((c) => [`${c} student events`, `${c} graduate events UK`]),
+              ].map(([label, q]) => (
+                <a key={label} href={`https://www.google.com/search?q=${encodeURIComponent(q)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1 text-[12.5px] font-medium hover:border-ink/30">
+                  {label} <ExternalLink size={11} />
+                </a>
+              ))}
+              <button onClick={() => setPasteOpen(true)} className="inline-flex items-center gap-1 rounded-full bg-ink px-3 py-1 text-[12.5px] font-semibold text-white">
+                <ClipboardPaste size={12} /> Paste an announcement
+              </button>
+            </div>
           </div>
         )}
       </div>
-      {profile.university === "UCL" && live.status === "unavailable" && (
+      {isUCL(profile.university) && live.status === "unavailable" && (
         <p className="-mt-3 mb-5 flex items-center gap-1.5 text-[12px] text-muted">
           <Radio size={12} /> Live UCL Careers listings couldn&apos;t be loaded right now{live.message ? ` (${live.message})` : ""}. Showing demo events. Open the source links above for current listings.
         </p>
@@ -144,9 +163,13 @@ export default function EventsPage() {
       ) : (
         <EmptyState
           icon={<Bookmark />}
-          title={view === "mine" ? "No events added yet" : "No events match"}
-          body={view === "mine" ? "Paste a society announcement (e.g. from Instagram) and STAY will turn it into an event card." : "Try a wider date range or clear filters."}
-          action={view === "mine" ? <Button onClick={() => setPasteOpen(true)}>Add from announcement</Button> : undefined}
+          title={view === "mine" ? "No events added yet" : d.events.length ? "No events match" : `No events for ${uni} yet`}
+          body={
+            view === "mine" || !d.events.length
+              ? "Paste a society or careers announcement (from Instagram, an email or a web page) and STAY will turn it into an event card and explain why it matters for you."
+              : "Try a wider date range or clear filters."
+          }
+          action={view === "mine" || !d.events.length ? <Button onClick={() => setPasteOpen(true)}>Add from announcement</Button> : undefined}
         />
       )}
 

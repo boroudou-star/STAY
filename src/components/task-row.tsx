@@ -22,7 +22,7 @@ export const CATEGORY_LABEL: Record<TaskCategory, string> = {
   cv: "CV",
   interviews: "Interviews",
   visa: "Visa",
-  custom: "Custom",
+  custom: "Planning",
 };
 export const CATEGORY_EMOJI: Record<TaskCategory, string> = {
   applications: "📮",

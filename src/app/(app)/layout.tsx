@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button, EmptyState, LinkButton, Skeleton } from "@/components/ui";
-import { useHydrated, useStay } from "@/lib/store";
+import { switchSlot, useHydrated, useStay } from "@/lib/store";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const hydrated = useHydrated();
   const profile = useStay((s) => s.profile);
-  const loadDemo = useStay((s) => s.loadDemo);
   const router = useRouter();
 
   if (!hydrated) {
@@ -40,8 +39,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <LinkButton href="/onboarding">Build my roadmap</LinkButton>
               <Button
                 variant="secondary"
-                onClick={() => {
-                  loadDemo();
+                onClick={async () => {
+                  await switchSlot("demo");
                   router.refresh();
                 }}
               >

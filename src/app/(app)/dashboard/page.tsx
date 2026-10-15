@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowRight, CalendarDays, Coffee, Compass, Flame, Map, Mic, Newspaper, RefreshCw, ShieldCheck, Sparkles, Target, Trophy, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Coffee, Compass, Flame, Map, Mic, Newspaper, Quote, RefreshCw, ShieldCheck, Sparkles, Target, Trophy, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { TRACK_MAP } from "@/data/careers";
 import { TaskRow } from "@/components/task-row";
 import { TubeMap } from "@/components/tube-map";
-import { Badge, Button, Card, DemoBadge, ProgressRing } from "@/components/ui";
+import { Badge, Button, Card, DemoBadge, ProgressBar, ProgressRing } from "@/components/ui";
+import { profileCompleteness, profileGaps, tailoringNotes } from "@/lib/profile";
 import { coffeeChatRecommendations } from "@/lib/engine/coffee";
 import { completedThisWeek } from "@/lib/engine/roadmap";
 import { visaSummary } from "@/lib/engine/visa";
@@ -33,10 +34,34 @@ export default function Dashboard() {
   const weekDone = completedThisWeek(tasks);
   const nextDeadline = tasks.filter((t) => t.status !== "completed" && t.category === "applications").sort((a, b) => a.deadline.localeCompare(b.deadline))[0];
   const doneCount = tasks.filter((t) => t.status === "completed").length;
+  const gaps = profileGaps(p);
+  const completeness = profileCompleteness(p);
 
   return (
     <div className="space-y-5">
-      {lastChange && daysBetween(lastChange.at.slice(0, 10), d.today) <= 1 && (lastChange.added > 0 || lastChange.removed > 0) && (
+      {lastChange?.reason === "Plan created" && (
+        <Card className="animate-fade-up border-teal/30 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[12px] font-semibold uppercase tracking-widest text-teal">Your plan is ready</div>
+              <h2 className="mt-1 font-display text-xl font-semibold">Here&apos;s how STAY tailored it{firstName ? ` for you, ${firstName}` : ""}</h2>
+            </div>
+            <button onClick={() => useStay.setState({ lastChange: null })} className="rounded-lg p-1 text-muted hover:bg-paper-2" aria-label="Dismiss">
+              <X size={16} />
+            </button>
+          </div>
+          <ul className="mt-3 grid gap-2 text-[13.5px] text-ink-2 md:grid-cols-2">
+            {tailoringNotes(p).map((n) => (
+              <li key={n} className="flex gap-2">
+                <Check size={15} className="mt-0.5 shrink-0 text-teal" /> {n}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[12.5px] text-muted">Change any answer on your Profile page and the plan rebuilds, keeping what you&apos;ve completed.</p>
+        </Card>
+      )}
+
+      {lastChange && lastChange.reason !== "Plan created" && daysBetween(lastChange.at.slice(0, 10), d.today) <= 1 && (lastChange.added > 0 || lastChange.removed > 0) && (
         <div className="flex animate-fade-up items-center justify-between gap-3 rounded-2xl border border-teal/20 bg-teal-soft px-4 py-3 text-[13.5px]">
           <span className="flex items-center gap-2 text-ink">
             <Sparkles size={16} className="text-teal" />
@@ -73,6 +98,11 @@ export default function Dashboard() {
               <p className="mt-3 text-[14.5px] text-ink-2">
                 {p.degree || p.subjectArea} · {p.university || "University"}
               </p>
+              {p.goalStatement?.trim() && (
+                <p className="mt-3 flex max-w-md items-start gap-2 text-[14px] font-medium text-ink">
+                  <Quote size={15} className="mt-0.5 shrink-0 text-teal" /> {p.goalStatement.trim()}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-5">
               <div className="text-right">
@@ -199,6 +229,29 @@ export default function Dashboard() {
           )}
         </Card>
       </div>
+
+      {gaps.length > 0 && (
+        <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sun-soft text-[#c2502f]">
+              <UserRound size={18} />
+            </span>
+            <div>
+              <div className="font-semibold">Make STAY more specific to you · {completeness}%</div>
+              <p className="text-[13px] text-ink-2">
+                <Link href={`/profile#${gaps[0].section}`} className="font-semibold text-blue hover:underline">
+                  {gaps[0].title}
+                </Link>
+                : {gaps[0].why.charAt(0).toLowerCase() + gaps[0].why.slice(1)}
+              </p>
+              <ProgressBar value={completeness} className="mt-2 h-1.5 max-w-xs" />
+            </div>
+          </div>
+          <Link href="/profile" className="shrink-0 text-[13px] font-semibold text-blue hover:underline">
+            {gaps.length} thing{gaps.length === 1 ? "" : "s"} to add →
+          </Link>
+        </Card>
+      )}
 
       {/* Timeline */}
       <Card className="p-5 sm:p-6">

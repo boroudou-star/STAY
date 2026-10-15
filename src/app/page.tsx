@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { Badge, buttonClass } from "@/components/ui";
-import { useStay } from "@/lib/store";
+import { switchSlot, useMyProfile } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 const FEATURES = [
@@ -36,10 +36,15 @@ const FEATURES = [
 
 export default function Landing() {
   const router = useRouter();
-  const loadDemo = useStay((s) => s.loadDemo);
+  const mine = useMyProfile();
+  const firstName = mine?.name.split(" ")[0];
 
-  const tryDemo = () => {
-    loadDemo();
+  const tryDemo = async () => {
+    await switchSlot("demo");
+    router.push("/dashboard");
+  };
+  const continueMine = async () => {
+    await switchSlot("mine");
     router.push("/dashboard");
   };
 
@@ -53,9 +58,15 @@ export default function Landing() {
             <button onClick={tryDemo} className={buttonClass("ghost", "md", "hidden sm:inline-flex")}>
               Try demo
             </button>
-            <Link href="/onboarding" className={buttonClass("primary", "md")}>
-              Get started
-            </Link>
+            {mine ? (
+              <button onClick={continueMine} className={buttonClass("primary", "md")}>
+                My plan
+              </button>
+            ) : (
+              <Link href="/onboarding" className={buttonClass("primary", "md")}>
+                Get started
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -79,14 +90,20 @@ export default function Landing() {
               want tomorrow: roadmap, opportunities, campus events and coffee chats in one place.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <button onClick={tryDemo} className={buttonClass("primary", "lg")}>
-                Try the demo <ArrowRight size={18} />
+              {mine ? (
+                <button onClick={continueMine} className={buttonClass("primary", "lg")}>
+                  Continue{firstName ? ` as ${firstName}` : " my plan"} <ArrowRight size={18} />
+                </button>
+              ) : (
+                <Link href="/onboarding" className={buttonClass("primary", "lg")}>
+                  Build my plan <ArrowRight size={18} />
+                </Link>
+              )}
+              <button onClick={tryDemo} className={buttonClass("secondary", "lg")}>
+                Try the demo
               </button>
-              <Link href="/onboarding" className={buttonClass("secondary", "lg")}>
-                Build my roadmap
-              </Link>
             </div>
-            <p className="mt-4 text-[13px] text-muted">No account needed · Takes about 3 minutes · Your data stays in your browser</p>
+            <p className="mt-4 text-[13px] text-muted">No account needed · About 5 minutes · Your data stays on this device · The demo never touches your data</p>
           </div>
 
           <HeroCard />

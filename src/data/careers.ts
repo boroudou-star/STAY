@@ -1,4 +1,4 @@
-import type { CareerTrack } from "@/lib/types";
+import type { CareerTrack, Challenge } from "@/lib/types";
 
 export interface TrackInfo {
   id: CareerTrack;
@@ -164,7 +164,8 @@ export const SKILL_ALIASES: Record<string, string[]> = {
   "data visualisation": ["data visualisation", "data visualization", "matplotlib", "tableau", "power bi", "plotly"],
   pandas: ["pandas", "numpy", "dataframes"],
   "experiment design": ["a/b testing", "experiment design", "experimentation"],
-  communication: ["communication", "presenting", "public speaking"],
+  presentation: ["presentation", "presentations", "presenting", "public speaking"],
+  communication: ["communication", "communication skills"],
   excel: ["excel", "spreadsheets", "excel modelling", "excel modeling"],
   "structured problem solving": ["structured problem solving", "problem solving", "case interviews"],
   "client communication": ["client communication", "stakeholder management"],
@@ -316,10 +317,55 @@ export const PROJECT_IDEAS: ProjectIdea[] = [
   },
 ];
 
-export const UK_CITIES = ["London", "Manchester", "Cambridge", "Oxford", "Edinburgh", "Bristol", "Birmingham", "Leeds", "Remote (UK)"];
+export const UK_CITIES = ["London", "Manchester", "Cambridge", "Oxford", "Edinburgh", "Bristol", "Birmingham", "Leeds", "Glasgow", "Nottingham", "Sheffield", "Newcastle", "Cardiff", "Belfast", "Remote (UK)"];
 export const COMPANY_TYPES = ["Big tech", "Startups / scale-ups", "Consultancies", "Banks & finance", "Public sector / NHS", "Research labs", "Any"];
 export const ROLE_TYPES = ["Graduate scheme", "Summer internship", "Off-cycle internship", "Research placement", "Entry-level job", "Part-time / project"];
-export const UNIVERSITIES = ["UCL", "Other"];
+/** Suggestions only: users can type any university. */
+export const UNIVERSITIES = [
+  "UCL", "Imperial College London", "King's College London", "London School of Economics (LSE)", "Queen Mary University of London", "City St George's, University of London",
+  "Royal Holloway, University of London", "SOAS University of London", "Birkbeck, University of London", "Goldsmiths, University of London", "University of Westminster",
+  "Brunel University of London", "University of Greenwich", "University of Oxford", "University of Cambridge", "University of Edinburgh", "University of Glasgow",
+  "University of St Andrews", "University of Manchester", "University of Birmingham", "University of Bristol", "University of Warwick", "University of Leeds",
+  "University of Sheffield", "University of Nottingham", "University of Southampton", "Durham University", "University of Exeter", "University of Bath",
+  "University of York", "Lancaster University", "Loughborough University", "Newcastle University", "University of Liverpool", "Cardiff University",
+  "Queen's University Belfast", "University of Surrey", "University of Sussex", "University of Leicester", "University of Reading", "Heriot-Watt University",
+  "University of Strathclyde", "University of Aberdeen", "University of Dundee", "Coventry University", "Manchester Metropolitan University", "Nottingham Trent University",
+  "Oxford Brookes University", "Ulster University", "Swansea University", "Aston University", "University of East Anglia", "University of Kent",
+];
+
+/** Well-known UK employers per track, offered as tap-to-add suggestions for target companies. */
+export const COMPANY_SUGGESTIONS: Record<CareerTrack, string[]> = {
+  ai: ["Google DeepMind", "Microsoft", "Amazon", "Meta", "Wayve", "Synthesia", "Faculty"],
+  software: ["Google", "Amazon", "Bloomberg", "Monzo", "Revolut", "Ocado Technology", "Arm"],
+  data: ["Deliveroo", "Spotify", "Sky", "Tesco", "Office for National Statistics", "Faculty", "Monzo"],
+  consulting: ["McKinsey", "BCG", "Bain", "Deloitte", "PwC", "EY", "KPMG", "Accenture"],
+  finance: ["J.P. Morgan", "Goldman Sachs", "Morgan Stanley", "Barclays", "HSBC", "Lloyds Banking Group", "Revolut"],
+  biotech: ["AstraZeneca", "GSK", "Isomorphic Labs", "Oxford Nanopore", "Genomics England", "Novartis"],
+  research: ["Alan Turing Institute", "Francis Crick Institute", "Wellcome Sanger Institute", "Google DeepMind", "Met Office"],
+  marketing: ["Unilever", "L'Oréal", "Diageo", "WPP", "Ogilvy", "Google", "TikTok"],
+  engineering: ["Rolls-Royce", "Arup", "BAE Systems", "Jaguar Land Rover", "National Grid", "Dyson", "AECOM"],
+  exploring: ["Civil Service Fast Stream", "NHS Graduate Management Scheme", "Teach First", "Unilever", "Deloitte"],
+  other: [],
+};
+
+export const INDUSTRY_SUGGESTIONS = ["Technology", "AI", "Fintech", "Banking", "Consulting", "Healthcare", "Biotech & pharma", "Energy & climate", "Public sector", "Retail & e-commerce", "Media & entertainment", "Education", "Automotive", "Aerospace & defence"];
+
+export const PRO_SKILL_SUGGESTIONS = ["Communication", "Teamwork", "Leadership", "Presenting", "Problem solving", "Time management", "Stakeholder management", "Writing", "Negotiation", "Attention to detail"];
+
+export const CHALLENGES: { id: Challenge; label: string; short: string }[] = [
+  { id: "experience", label: "I don't have much relevant experience", short: "getting experience" },
+  { id: "direction", label: "I'm not sure which path to choose", short: "choosing a direction" },
+  { id: "networking", label: "Networking and reaching out to people", short: "networking" },
+  { id: "applications", label: "Getting applications out on time", short: "applications" },
+  { id: "interviews", label: "Interviews and assessments", short: "interviews" },
+  { id: "visa", label: "Finding employers who sponsor visas", short: "visa sponsorship" },
+  { id: "skills", label: "Technical skills for my target role", short: "skills" },
+  { id: "time", label: "Finding the time alongside studies or work", short: "time" },
+];
+
+export function isUCL(university?: string) {
+  return /^(ucl|university college london)$/i.test((university ?? "").trim());
+}
 
 /** Use the user's preferred role only if it plausibly belongs to their main track; otherwise the track's typical role. */
 export function roleForTrack(track: CareerTrack, preferredRoles: string[]) {
@@ -342,3 +388,7 @@ export function roleForTrack(track: CareerTrack, preferredRoles: string[]) {
 export const UNIVERSITY_LINKEDIN: Record<string, string> = {
   UCL: "university-college-london",
 };
+
+export function universityLinkedIn(university: string) {
+  return UNIVERSITY_LINKEDIN[isUCL(university) ? "UCL" : university];
+}

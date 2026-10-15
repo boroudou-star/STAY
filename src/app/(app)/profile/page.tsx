@@ -1,237 +1,286 @@
 "use client";
 
-import { LogOut, RefreshCw, Save, Sparkles } from "lucide-react";
+import { Download, RefreshCw, Save, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { TRACKS, UK_CITIES, UNIVERSITIES } from "@/data/careers";
-import { Button, Card, Chip, DemoBadge, Input, Label, Modal, PageHeader, Select, Textarea } from "@/components/ui";
-import { useStay } from "@/lib/store";
+import {
+  AboutFields,
+  EducationFields,
+  GoalsFields,
+  GraduateStartField,
+  PreferenceFields,
+  SkillsFields,
+  StartingPointFields,
+  VisaFields,
+} from "@/components/profile-fields";
+import { Button, Card, DemoBadge, Modal, PageHeader, ProgressBar } from "@/components/ui";
+import { profileCompleteness, profileGaps, withDefaults } from "@/lib/profile";
+import { deleteMyData, switchSlot, useStay } from "@/lib/store";
 import type { UserProfile } from "@/lib/types";
-import { splitList } from "@/lib/utils";
+import { todayISO } from "@/lib/utils";
+
+const SECTIONS: { id: string; title: string; body: string }[] = [
+  { id: "about", title: "About you", body: "Your stage and what success looks like." },
+  { id: "education", title: "Studies", body: "Sets the timing of your whole plan." },
+  { id: "goals", title: "Goals and target companies", body: "Drives roles, searches, insights and interview prep." },
+  { id: "skills", title: "Skills, experience and CV", body: "Skill gaps, role scores and CV interview questions use this." },
+  { id: "start", title: "Starting point", body: "What's done, what's hard and how much time you have." },
+  { id: "prefs", title: "Preferences", body: "How roles are ranked for you." },
+  { id: "visa", title: "Visa", body: "Optional. Sponsorship flags and visa milestones." },
+];
+
+const comparable = (x: UserProfile) => JSON.stringify({ ...withDefaults(x), updatedAt: "" });
 
 export default function ProfilePage() {
-  const router = useRouter();
   const stored = useStay((s) => s.profile)!;
+  // Remount when switching between the demo and your own data, or after a restore
+  return <ProfileEditor key={`${stored.id}-${stored.isDemo}`} stored={stored} />;
+}
+
+function ProfileEditor({ stored }: { stored: UserProfile }) {
+  const router = useRouter();
   const setProfile = useStay((s) => s.setProfile);
-  const loadDemo = useStay((s) => s.loadDemo);
-  const resetAll = useStay((s) => s.resetAll);
-  const [p, setP] = useState<UserProfile>(stored);
-  const [tech, setTech] = useState(stored.technicalSkills.join(", "));
-  const [pro, setPro] = useState(stored.professionalSkills.join(", "));
-  const [roles, setRoles] = useState(stored.preferredRoles.join(", "));
-  const [gradMonth, setGradMonth] = useState(stored.graduationDate.slice(0, 7));
-  const [confirmReset, setConfirmReset] = useState(false);
+  const [p, setP] = useState<UserProfile>(() => withDefaults(stored));
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const update = (patch: Partial<UserProfile>) => setP((x) => ({ ...x, ...patch }));
+  const dirty = comparable(p) !== comparable(stored);
+  const gaps = profileGaps(p);
+  const pct = profileCompleteness(p);
 
   const save = () => {
     if (!p.careerGoals.length) return toast.error("Pick at least one career goal");
-    const goalsChanged = p.careerGoals.join() !== stored.careerGoals.join();
-    const next: UserProfile = {
-      ...p,
-      technicalSkills: splitList(tech),
-      professionalSkills: splitList(pro),
-      preferredRoles: splitList(roles),
-      graduationDate: `${gradMonth}-${gradMonth.endsWith("-02") ? "28" : "30"}`,
-    };
-    const s = setProfile(next, goalsChanged ? "Career goals updated" : "Profile updated");
+    if (!p.university.trim()) return toast.error("Add your university");
+    const s = setProfile(p, "Profile updated");
     toast.success("STAY adapted your plan", {
-      description: `${s.added} new task${s.added === 1 ? "" : "s"} · ${s.removed} removed · ${s.keptCompleted ? `${s.keptCompleted} completed kept` : "completed tasks kept"}. Opportunities and events re-ranked.`,
+      description: `${s.added} new task${s.added === 1 ? "" : "s"} · ${s.removed} removed · completed tasks kept. Roles and events re-ranked.`,
       action: { label: "View dashboard", onClick: () => router.push("/dashboard") },
     });
   };
 
+  const section = (id: string): ReactNode => {
+    if (id === "about") return <AboutFields p={p} update={update} />;
+    if (id === "education")
+      return (
+        <div className="space-y-5">
+          <EducationFields p={p} update={update} />
+          <GraduateStartField p={p} update={update} />
+        </div>
+      );
+    if (id === "goals") return <GoalsFields p={p} update={update} />;
+    if (id === "skills") return <SkillsFields p={p} update={update} />;
+    if (id === "start") return <StartingPointFields p={p} update={update} />;
+    if (id === "prefs") return <PreferenceFields p={p} update={update} />;
+    return <VisaFields p={p} update={update} />;
+  };
+
   return (
-    <div>
+    <div className="pb-24">
       <PageHeader
         eyebrow="Profile"
         title="Your profile"
-        description="Change anything. STAY rebuilds your roadmap, re-ranks opportunities and events, and keeps every task you've completed."
+        description="Everything STAY knows about you, all editable. Save and STAY rebuilds your roadmap, re-ranks roles and events, and keeps everything you've completed."
         actions={
-          <Button onClick={save}>
-            <Save size={16} /> Save & adapt roadmap
+          <Button onClick={save} disabled={!dirty}>
+            <Save size={16} /> Save & adapt
           </Button>
         }
       />
       {stored.isDemo && (
-        <div className="mb-5 flex items-center gap-2 text-[13px] text-ink-2">
-          <DemoBadge label="Demo profile" /> Alex Chen is fictional. Try switching their main goal to Consulting and saving to see STAY adapt.
+        <div className="mb-5 flex flex-wrap items-center gap-2 text-[13px] text-ink-2">
+          <DemoBadge label="Demo profile" /> Alex Chen is fictional. Try changing the main goal to Consulting and saving to watch STAY adapt.
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card className="p-6">
-          <h2 className="mb-4 font-display text-lg font-semibold">About you</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label>Name</Label>
-              <Input value={p.name} onChange={(e) => update({ name: e.target.value })} />
-            </div>
-            <div>
-              <Label>Stage</Label>
-              <Select value={p.studyStatus} onChange={(e) => update({ studyStatus: e.target.value as UserProfile["studyStatus"] })}>
-                <option value="student">Currently studying</option>
-                <option value="graduate">Graduated</option>
-              </Select>
-            </div>
-            <div>
-              <Label>University</Label>
-              <Select value={UNIVERSITIES.includes(p.university) ? p.university : "Other"} onChange={(e) => update({ university: e.target.value === "Other" ? "" : e.target.value })}>
-                {UNIVERSITIES.map((u) => (
-                  <option key={u}>{u}</option>
+      <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+        <nav className="hidden lg:block">
+          <div className="sticky top-8 space-y-4">
+            <Card className="p-4">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="font-semibold">Profile strength</span>
+                <span className="font-semibold">{pct}%</span>
+              </div>
+              <ProgressBar value={pct} className="mt-2 h-1.5" />
+              {gaps[0] && <p className="mt-2 text-[12px] text-muted">Next: {gaps[0].title.toLowerCase()}</p>}
+            </Card>
+            <ul className="space-y-0.5 text-[13.5px]">
+              {SECTIONS.map((s) => (
+                <li key={s.id}>
+                  <a href={`#${s.id}`} className="block rounded-lg px-3 py-1.5 text-ink-2 hover:bg-paper-2 hover:text-ink">
+                    {s.title}
+                  </a>
+                </li>
+              ))}
+              <li>
+                <a href="#data" className="block rounded-lg px-3 py-1.5 text-ink-2 hover:bg-paper-2 hover:text-ink">
+                  Your data
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+
+        <div className="min-w-0 space-y-5">
+          {gaps.length > 0 && (
+            <Card className="border-sun/30 bg-sun-soft/40 p-5">
+              <h2 className="font-display text-lg font-semibold">Make your plan more specific</h2>
+              <ul className="mt-2 space-y-1.5 text-[13.5px]">
+                {gaps.slice(0, 4).map((g) => (
+                  <li key={g.id}>
+                    <a href={`#${g.section}`} className="font-semibold text-blue hover:underline">
+                      {g.title}
+                    </a>{" "}
+                    <span className="text-ink-2">{g.why}</span>
+                  </li>
                 ))}
-              </Select>
-              {!UNIVERSITIES.includes(p.university) && <Input className="mt-2" placeholder="Your university" value={p.university} onChange={(e) => update({ university: e.target.value })} />}
-            </div>
-            <div>
-              <Label>Degree</Label>
-              <Input value={p.degree} onChange={(e) => update({ degree: e.target.value })} />
-            </div>
-            <div>
-              <Label>{p.studyStatus === "student" ? "Expected graduation" : "Graduated"}</Label>
-              <Input type="month" value={gradMonth} onChange={(e) => setGradMonth(e.target.value)} />
-            </div>
-            {p.studyStatus === "graduate" && (
-              <div>
-                <Label>Target start date</Label>
-                <Input type="date" value={p.targetStartDate ?? ""} onChange={(e) => update({ targetStartDate: e.target.value || undefined })} />
-              </div>
-            )}
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="mb-1 font-display text-lg font-semibold">Career goals</h2>
-          <p className="mb-4 text-[13px] text-muted">The first one is your main goal.</p>
-          <div className="flex flex-wrap gap-2">
-            {TRACKS.map((t) => {
-              const idx = p.careerGoals.indexOf(t.id);
-              return (
-                <Chip key={t.id} active={idx >= 0} onClick={() => update({ careerGoals: idx >= 0 ? p.careerGoals.filter((g) => g !== t.id) : [...p.careerGoals, t.id] })}>
-                  {t.emoji} {t.label}
-                  {idx === 0 && <span className="ml-1 rounded-full bg-lime px-1.5 text-[10px] font-bold text-ink">MAIN</span>}
-                </Chip>
-              );
-            })}
-          </div>
-          <div className="mt-4">
-            <Label hint="(comma-separated)">Preferred roles</Label>
-            <Input value={roles} onChange={(e) => setRoles(e.target.value)} />
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="mb-4 font-display text-lg font-semibold">Skills & experience</h2>
-          <div className="space-y-4">
-            <div>
-              <Label hint="(comma-separated)">Technical skills</Label>
-              <Input value={tech} onChange={(e) => setTech(e.target.value)} />
-            </div>
-            <div>
-              <Label hint="(comma-separated)">Professional skills</Label>
-              <Input value={pro} onChange={(e) => setPro(e.target.value)} />
-            </div>
-            <div>
-              <Label>Internships</Label>
-              <Textarea className="min-h-16" value={p.experience.internships} onChange={(e) => update({ experience: { ...p.experience, internships: e.target.value } })} />
-            </div>
-            <div>
-              <Label>Projects</Label>
-              <Textarea className="min-h-16" value={p.experience.projects} onChange={(e) => update({ experience: { ...p.experience, projects: e.target.value } })} />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="mb-4 font-display text-lg font-semibold">Preferences & visa</h2>
-          <Label>Locations</Label>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {UK_CITIES.map((c) => (
-              <Chip
-                key={c}
-                active={p.locationPreferences.includes(c)}
-                onClick={() => update({ locationPreferences: p.locationPreferences.includes(c) ? p.locationPreferences.filter((x) => x !== c) : [...p.locationPreferences, c] })}
-              >
-                {c}
-              </Chip>
-            ))}
-          </div>
-          <label className="mb-5 flex items-center gap-2 text-[14px]">
-            <input type="checkbox" className="h-4 w-4 accent-[var(--teal)]" checked={p.willingToRelocate} onChange={(e) => update({ willingToRelocate: e.target.checked })} />
-            Willing to relocate
-          </label>
-          <label className="mb-4 flex items-center gap-2 text-[14px]">
-            <input type="checkbox" className="h-4 w-4 accent-[var(--teal)]" checked={p.visa.skipped} onChange={(e) => update({ visa: { ...p.visa, skipped: e.target.checked } })} />
-            Don&apos;t use visa information
-          </label>
-          {!p.visa.skipped && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label>Needs sponsorship?</Label>
-                <Select value={p.visa.needsSponsorship} onChange={(e) => update({ visa: { ...p.visa, needsSponsorship: e.target.value as UserProfile["visa"]["needsSponsorship"] } })}>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                  <option value="unsure">Not sure</option>
-                </Select>
-              </div>
-              <div>
-                <Label>Current visa</Label>
-                <Select value={p.visa.visaType} onChange={(e) => update({ visa: { ...p.visa, visaType: e.target.value as UserProfile["visa"]["visaType"] } })}>
-                  <option value="student">Student</option>
-                  <option value="graduate">Graduate</option>
-                  <option value="skilled_worker">Skilled Worker</option>
-                  <option value="other">Other</option>
-                  <option value="none">None</option>
-                  <option value="unsure">Not sure</option>
-                </Select>
-              </div>
-              <div>
-                <Label hint="(optional)">Visa expiry</Label>
-                <Input type="date" value={p.visa.expiryDate ?? ""} onChange={(e) => update({ visa: { ...p.visa, expiryDate: e.target.value || undefined } })} />
-              </div>
-            </div>
+              </ul>
+            </Card>
           )}
-        </Card>
-      </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              loadDemo();
-              toast.success("Demo profile reloaded");
-              router.push("/dashboard");
-            }}
-          >
-            <RefreshCw size={16} /> Reset demo
-          </Button>
-          <Button variant="ghost" onClick={() => setConfirmReset(true)}>
-            <LogOut size={16} /> Start over
-          </Button>
+          {SECTIONS.map((s) => (
+            <Card key={s.id} className="scroll-mt-24 p-5 sm:p-6">
+              <div id={s.id} className="scroll-mt-24" />
+              <h2 className="font-display text-lg font-semibold">{s.title}</h2>
+              <p className="mb-5 text-[13px] text-muted">{s.body}</p>
+              {section(s.id)}
+            </Card>
+          ))}
+
+          <div id="data" className="scroll-mt-24">
+            {stored.isDemo ? <DemoControls /> : <DataControls onDelete={() => setConfirmDelete(true)} />}
+          </div>
         </div>
-        <Button onClick={save} size="lg">
-          <Sparkles size={16} /> Save & adapt roadmap
-        </Button>
       </div>
 
-      <Modal open={confirmReset} onClose={() => setConfirmReset(false)} title="Start over?">
-        <p className="text-[14px] text-ink-2">This clears your profile, roadmap and saved items from this browser.</p>
+      {dirty && (
+        <div className="fixed inset-x-0 bottom-16 z-30 px-4 lg:bottom-6 lg:left-64">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-line bg-ink px-4 py-3 text-white shadow-[var(--shadow-lift)]">
+            <span className="text-[13.5px]">You have unsaved changes.</span>
+            <div className="flex gap-2">
+              <button className="rounded-full px-3 py-1.5 text-[13px] text-white/70 hover:text-white" onClick={() => setP(withDefaults(stored))}>
+                Discard
+              </button>
+              <Button variant="lime" size="sm" onClick={save}>
+                <Sparkles size={14} /> Save & adapt my plan
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete your data?">
+        <p className="text-[14px] text-ink-2">
+          This permanently removes your profile, roadmap, notes, interview practice and everything else from this device. The demo isn&apos;t affected. Download a copy first if you might want it back.
+        </p>
         <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setConfirmReset(false)}>
+          <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
             Cancel
           </Button>
           <Button
             variant="danger"
-            onClick={() => {
-              resetAll();
-              router.push("/onboarding");
+            onClick={async () => {
+              await deleteMyData();
+              toast("Your data was deleted from this device");
+              router.push("/");
             }}
           >
-            Clear everything
+            Delete everything
           </Button>
         </div>
       </Modal>
     </div>
+  );
+}
+
+function DemoControls() {
+  const router = useRouter();
+  return (
+    <Card className="p-5 sm:p-6">
+      <h2 className="font-display text-lg font-semibold">Demo controls</h2>
+      <p className="mb-4 text-[13px] text-muted">The demo lives in its own space on this device. Resetting it never touches your own plan.</p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            await switchSlot("demo", { freshDemo: true });
+            toast.success("Demo reset to the start");
+            router.push("/dashboard");
+          }}
+        >
+          <RefreshCw size={16} /> Reset demo
+        </Button>
+        <Button
+          onClick={async () => {
+            const has = await switchSlot("mine");
+            router.push(has ? "/dashboard" : "/onboarding");
+          }}
+        >
+          Go to my own plan
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+/** Download, restore or delete everything STAY stores for this user. */
+function DataControls({ onDelete }: { onDelete: () => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  const exportData = () => {
+    const s = useStay.getState();
+    const state = Object.fromEntries(Object.entries(s).filter(([, v]) => typeof v !== "function"));
+    const blob = new Blob([JSON.stringify({ app: "STAY", version: 1, exportedAt: new Date().toISOString(), state }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `stay-my-data-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Downloaded your data");
+  };
+
+  const importData = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text()) as { app?: string; state?: { profile?: UserProfile } };
+      if (parsed.app !== "STAY" || !parsed.state?.profile) throw new Error("not a STAY file");
+      const state = parsed.state as Record<string, unknown>;
+      useStay.setState({ ...state, profile: { ...parsed.state.profile, isDemo: false } } as Partial<ReturnType<typeof useStay.getState>>);
+      toast.success("Your data was restored");
+      router.push("/dashboard");
+    } catch {
+      toast.error("That file isn't a STAY export");
+    }
+  };
+
+  return (
+    <Card className="p-5 sm:p-6">
+      <h2 className="font-display text-lg font-semibold">Your data</h2>
+      <p className="mb-4 text-[13px] text-muted">
+        Everything is stored on this device only. There&apos;s no account yet, so download a copy to move to another device or browser, and restore it there.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" onClick={exportData}>
+          <Download size={16} /> Download my data
+        </Button>
+        <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+          <Upload size={16} /> Restore from a file
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) importData(f);
+            e.target.value = "";
+          }}
+        />
+        <Button variant="ghost" onClick={onDelete} className="text-red-600 hover:bg-red-50">
+          <Trash2 size={16} /> Delete my data
+        </Button>
+      </div>
+    </Card>
   );
 }

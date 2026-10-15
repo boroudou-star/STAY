@@ -2,10 +2,10 @@
 
 import { CalendarDays, Compass, Coffee, GraduationCap, LayoutDashboard, Map, Menu, Mic, Newspaper, ShieldCheck, Sparkles, User, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { progress } from "@/lib/engine/roadmap";
-import { useStay } from "@/lib/store";
+import { switchSlot, useMyProfile, useStay } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { DemoBadge, ProgressBar } from "./ui";
@@ -76,6 +76,36 @@ function SidebarFooter() {
   );
 }
 
+/** Shown while exploring the demo, so nobody mistakes Alex's plan for their own. */
+function DemoBanner() {
+  const isDemo = useStay((s) => Boolean(s.profile?.isDemo));
+  const mine = useMyProfile();
+  const router = useRouter();
+  if (!isDemo) return null;
+  return (
+    <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-violet/20 bg-violet-soft px-4 py-3 text-[13.5px] sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-ink">
+        <b>You&apos;re exploring the demo.</b> Alex is fictional. Anything you change here stays in the demo and never touches {mine ? "your own plan" : "a plan of your own"}.
+      </span>
+      {mine ? (
+        <button
+          onClick={async () => {
+            await switchSlot("mine");
+            router.push("/dashboard");
+          }}
+          className="shrink-0 rounded-full bg-ink px-4 py-1.5 text-[13px] font-semibold text-white hover:bg-ink/90"
+        >
+          Back to my plan{mine.name ? ` (${mine.name.split(" ")[0]})` : ""}
+        </button>
+      ) : (
+        <Link href="/onboarding" className="shrink-0 rounded-full bg-ink px-4 py-1.5 text-center text-[13px] font-semibold text-white hover:bg-ink/90">
+          Build my own plan
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
@@ -119,7 +149,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <main className="min-w-0 flex-1 px-4 pb-24 pt-20 sm:px-6 lg:px-10 lg:pt-8">
-        <div className="mx-auto w-full max-w-6xl">{children}</div>
+        <div className="mx-auto w-full max-w-6xl">
+          <DemoBanner />
+          {children}
+        </div>
       </main>
 
       {/* Mobile bottom tab bar */}

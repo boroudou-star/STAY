@@ -6,7 +6,7 @@ import { deterministicInsight, insightFacts } from "@/lib/engine/insight";
 import { listOpportunitiesSync, rankOpportunities } from "@/lib/engine/opportunities";
 import { computeHorizon, computePhases, progress, topPriorities } from "@/lib/engine/roadmap";
 import { analyseSkills } from "@/lib/engine/skills";
-import { allEventsSync } from "@/lib/services/catalog";
+import { allEventsSync, isUCL } from "@/lib/services/catalog";
 import { activityOf, useStay } from "@/lib/store";
 import type { CareerEvent, UserProfile } from "@/lib/types";
 import { todayISO } from "@/lib/utils";
@@ -25,9 +25,9 @@ export function useDerived(liveEvents: CareerEvent[] = []) {
   return useMemo(() => {
     const horizon = computeHorizon(profile, today);
     const phases = computePhases(profile, horizon);
-    const activity = activityOf({ savedOpps, appliedOpps, contacts, tasks });
+    const activity = activityOf({ savedOpps, appliedOpps, contacts, tasks, profile });
     const opportunities = rankOpportunities([...liveOpps, ...listOpportunitiesSync(today)], profile, today);
-    const events = rankEvents(allEventsSync(manualEvents, liveEvents, today), profile, today, activity);
+    const events = rankEvents(allEventsSync(manualEvents, liveEvents, today, profile.university), profile, today, activity);
     const skills = analyseSkills(profile);
     return {
       profile,
@@ -82,10 +82,10 @@ export function useInsight(d: ReturnType<typeof useDerived>) {
 export function useLiveEvents(university: string) {
   const [state, setState] = useState<{ events: CareerEvent[]; status: "idle" | "loading" | "ok" | "unavailable"; fetchedAt?: string; message?: string }>({
     events: [],
-    status: university === "UCL" ? "loading" : "idle",
+    status: isUCL(university) ? "loading" : "idle",
   });
   useEffect(() => {
-    if (university !== "UCL") return;
+    if (!isUCL(university)) return;
     let cancelled = false;
     fetch("/api/events/live?source=ucl-careers")
       .then((r) => r.json())

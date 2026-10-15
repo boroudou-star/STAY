@@ -41,6 +41,19 @@ export interface Experience {
   cvText: string;
 }
 
+/** What the user finds hardest right now. Moves the matching parts of the plan up. */
+export type Challenge = "experience" | "direction" | "networking" | "applications" | "interviews" | "visa" | "skills" | "time";
+
+/** Where the user already is, so STAY doesn't ask them to do things they've done. */
+export interface StartingPoint {
+  cvReady: boolean;
+  linkedinReady: boolean;
+  inSocieties: boolean;
+  reachedOut: boolean;
+  applicationsSent: number;
+  interviewsDone: number;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -71,6 +84,14 @@ export interface UserProfile {
     visaType: VisaType;
     expiryDate?: string;
   };
+  /** Companies the user would most like to work for */
+  targetCompanies?: string[];
+  /** Hours a week they can give to career prep; paces deadlines */
+  weeklyHours?: number;
+  challenges?: Challenge[];
+  startingPoint?: StartingPoint;
+  /** In their words: what would make the next year a success */
+  goalStatement?: string;
   isDemo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -162,6 +183,8 @@ export interface Activity {
   appliedOpps: Record<string, string>;
   contacts: Record<string, { status: ContactStatus }>;
   completedTemplateIds: string[];
+  /** Applications the user sent before or outside STAY (from their starting point) */
+  externalApplications?: number;
   /** Industry reflections saved */
   insightEntries?: number;
   /** Completed mock interviews */

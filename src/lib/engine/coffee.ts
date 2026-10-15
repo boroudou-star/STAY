@@ -1,4 +1,4 @@
-import { roleForTrack, TRACK_MAP, UNIVERSITY_LINKEDIN } from "@/data/careers";
+import { roleForTrack, TRACK_MAP, universityLinkedIn } from "@/data/careers";
 import type { CareerTrack, NetworkingRecommendation, UserContact, UserProfile } from "@/lib/types";
 
 /**
@@ -14,7 +14,7 @@ export function linkedInPeopleSearch(keywords: string) {
 
 /** LinkedIn's alumni tool for a university (logged-in LinkedIn users), filtered by keywords. */
 export function linkedInAlumniSearch(university: string, keywords: string) {
-  const slug = UNIVERSITY_LINKEDIN[university];
+  const slug = universityLinkedIn(university);
   if (!slug) return undefined;
   return `https://www.linkedin.com/school/${slug}/people/?keywords=${encodeURIComponent(keywords)}`;
 }
@@ -109,6 +109,24 @@ export function coffeeChatRecommendations(p: UserProfile): NetworkingRecommendat
       isDemo: false,
     },
   ];
+  // Target companies replace the generic company-type search: people there are the most useful contacts
+  const target = p.targetCompanies?.find((t) => t.trim());
+  if (target) {
+    const i = recs.findIndex((r) => r.id === "cc-company-type");
+    recs.splice(i, 1);
+    recs.splice(1, 0, {
+      id: `cc-target-${target.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      recommendationType: "search",
+      title: uni ? `${uni} alumni at ${target}` : `${role1}s at ${target}`,
+      role: `${role1} at ${target}`,
+      universityConnection: uni ? `Fellow ${uni} graduate` : undefined,
+      searchUrl: linkedInPeopleSearch(`${target} ${uni || role1}`.trim()),
+      alumniUrl: linkedInAlumniSearch(p.university, target),
+      relevanceExplanation: `${target} is on your target list. Someone inside can tell you how they hire graduates, which teams are growing and what a strong application looks like.`,
+      conversationTopics: [`What does a graduate's first year at ${target} look like?`, "Which teams hire juniors, and when?", "What made successful applicants stand out?"],
+      isDemo: false,
+    });
+  }
   return recs.slice(0, 5);
 }
 

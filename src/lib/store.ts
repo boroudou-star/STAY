@@ -4,11 +4,11 @@ import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { demoProfile } from "@/data/demo-profile";
-import { activityStats, AUTO_COMPLETE_RULES } from "@/lib/engine/roadmap";
+import { activityStats, AUTO_COMPLETE_RULES, START_TEMPLATES } from "@/lib/engine/roadmap";
 import { canonicalSkill } from "@/data/careers";
 import { buildRoadmap } from "@/lib/services/catalog";
-import { stayStorage, STORAGE_KEY } from "@/lib/persistence";
-import type { Activity, CareerEvent, ChatTurn, ContactTracking, FeedItem, InsightEntry, InsightPrefs, MockSession, ReadingNote, StoryEntry, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
+import { activeSlot, keyFor, migrateLegacyDemo, setActiveSlot, slotProfile, stayStorage, STORAGE_KEY, type Slot } from "@/lib/persistence";
+import type { Activity, CareerEvent, ChatTurn, StartingPoint, ContactTracking, FeedItem, InsightEntry, InsightPrefs, MockSession, ReadingNote, StoryEntry, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
 import { addDays, daysBetween, todayISO, uid } from "@/lib/utils";
 
 export interface ChangeSummary {
@@ -127,7 +127,7 @@ const initial = {
   interviewCompany: "",
 };
 
-type Snapshot = Pick<StayState, "savedOpps" | "appliedOpps" | "contacts" | "tasks"> & Partial<Pick<StayState, "journal" | "mockSessions">>;
+type Snapshot = Pick<StayState, "savedOpps" | "appliedOpps" | "contacts" | "tasks"> & Partial<Pick<StayState, "journal" | "mockSessions" | "profile">>;
 
 export function activityOf(s: Snapshot): Activity {
   return {
@@ -135,6 +135,7 @@ export function activityOf(s: Snapshot): Activity {
     appliedOpps: s.appliedOpps,
     contacts: s.contacts,
     completedTemplateIds: s.tasks.filter((t) => t.status === "completed" && t.templateId).map((t) => t.templateId!),
+    externalApplications: s.profile?.startingPoint?.applicationsSent ?? 0,
     insightEntries: s.journal?.filter((e) => !e.parentId && e.summary?.verdict !== "weak").length ?? 0,
     mockInterviews: s.mockSessions?.filter((m) => m.completedAt).length ?? 0,
   };
@@ -151,15 +152,24 @@ function newTaskTitles(tasks: RoadmapTask[], prevIds: Set<string>) {
     .map((t) => t.title);
 }
 
+migrateLegacyDemo();
+
 export const useStay = create<StayState>()(
   persist(
     (set, get) => ({
       ...initial,
 
       setProfile: (p, reason = "Profile updated") => {
-        const merged = buildRoadmap(p, get().tasks, get().manualEvents, activityOf(get()), get().liveOpps);
-        const summary = { reason, added: merged.added, removed: merged.removed, keptCompleted: merged.keptCompleted, at: new Date().toISOString() };
-        set({ profile: { ...p, updatedAt: new Date().toISOString() }, tasks: merged.tasks, lastChange: summary, insight: null });
+        const prevStart = get().profile?.startingPoint;
+        const merged = buildRoadmap(p, get().tasks, get().manualEvents, activityOf({ ...get(), profile: p }), get().liveOpps);
+        // Something newly marked as already done in the starting point ticks off its task
+        const now = new Date().toISOString();
+        const newlyDone = Object.entries(START_TEMPLATES)
+          .filter(([k]) => p.startingPoint?.[k as keyof StartingPoint] && !prevStart?.[k as keyof StartingPoint])
+          .map(([, templateId]) => templateId);
+        const tasks = merged.tasks.map((t) => (t.templateId && newlyDone.includes(t.templateId) && t.status !== "completed" ? { ...t, status: "completed" as const, completedAt: now } : t));
+        const summary = { reason, added: merged.added, removed: merged.removed, keptCompleted: merged.keptCompleted, at: now };
+        set({ profile: { ...p, updatedAt: now }, tasks, lastChange: summary, insight: null });
         return summary;
       },
 
@@ -401,7 +411,7 @@ export const useStay = create<StayState>()(
           return { insightChats: next };
         }),
       setInsightPrefs: (patch) =>
-        set((s) => ({ insightPrefs: { areas: [], companies: [], planDone: [], ...(s.insightPrefs ?? {}), ...patch } })),
+        set((s) => ({ insightPrefs: { areas: [], companies: (s.profile?.targetCompanies ?? []).slice(0, 4), planDone: [], ...(s.insightPrefs ?? {}), ...patch } })),
       addInsightEntry: (e) => {
         const id = uid("ins");
         set((s) => ({ journal: [{ ...e, id, createdAt: new Date().toISOString() }, ...s.journal] }));
@@ -418,9 +428,11 @@ export const useStay = create<StayState>()(
       deleteStory: (id) => set((s) => ({ stories: s.stories.filter((x) => x.id !== id) })),
     }),
     {
-      name: STORAGE_KEY,
+      name: typeof window === "undefined" ? STORAGE_KEY : keyFor(activeSlot()),
       storage: createJSONStorage(() => stayStorage),
       version: 1,
+      // Fields missing from older saves fall back to defaults, never to the other space's data
+      merge: (persisted, current) => ({ ...current, ...initial, ...(persisted as Partial<StayState>) }),
     },
   ),
 );
@@ -449,6 +461,37 @@ function autoSync(get: () => StayState, set: (p: Partial<StayState>) => void): E
   return { autoCompleted, newTasks: newTaskTitles(tasks, prevIds) };
 }
 
+/**
+ * Switch between the user's own space and the demo. Each keeps its own data.
+ * Returns whether the space now has a profile.
+ */
+export async function switchSlot(slot: Slot, opts: { freshDemo?: boolean } = {}) {
+  const key = keyFor(slot);
+  setActiveSlot(slot);
+  useStay.persist.setOptions({ name: key });
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(key);
+  } catch {
+    /* storage blocked */
+  }
+  if (raw && !(slot === "demo" && opts.freshDemo)) {
+    await useStay.persist.rehydrate();
+  } else if (slot === "demo") {
+    useStay.getState().loadDemo();
+  } else {
+    useStay.setState({ ...initial });
+  }
+  return Boolean(useStay.getState().profile);
+}
+
+/** Wipes the user's own space on this device. */
+export async function deleteMyData() {
+  await switchSlot("mine");
+  useStay.setState({ ...initial });
+  useStay.persist.clearStorage();
+}
+
 /** True once persisted state has loaded in the browser (avoids SSR/hydration mismatches). */
 export function useHydrated() {
   return useSyncExternalStore(
@@ -456,4 +499,28 @@ export function useHydrated() {
     () => useStay.persist.hasHydrated(),
     () => false,
   );
+}
+
+/**
+ * Whether the user has their own saved profile on this device (even while viewing the demo).
+ * Returns null on the server and before the browser has loaded.
+ */
+export function useMyProfile(): { name: string } | null {
+  const snap = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("storage", cb);
+      const unsub = useStay.subscribe(cb);
+      return () => {
+        window.removeEventListener("storage", cb);
+        unsub();
+      };
+    },
+    () => {
+      const p = slotProfile("mine");
+      return p && !p.isDemo ? `1:${p.name}` : "0";
+    },
+    () => "",
+  );
+  if (!snap || snap === "0") return null;
+  return { name: snap.slice(2) };
 }

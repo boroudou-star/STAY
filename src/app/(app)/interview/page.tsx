@@ -49,6 +49,7 @@ export default function InterviewPage() {
   // Companies the user has shown interest in elsewhere in STAY
   const suggestions = Array.from(
     new Set([
+      ...(profile.targetCompanies ?? []),
       ...(insightPrefs?.companies ?? []),
       ...tasks.filter((t) => t.sourceOpportunityId && / (at|\u2014) /.test(t.title)).map((t) => t.title.split(/ at | \u2014 /).pop()!.trim()),
     ]),

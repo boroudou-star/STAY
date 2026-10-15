@@ -1,4 +1,4 @@
-import { canonicalSkill, TRACK_MAP } from "@/data/careers";
+import { canonicalSkill, isUCL, TRACK_MAP } from "@/data/careers";
 import { getDemoEvents } from "@/data/events";
 import type { Activity, CareerEvent, EventCategory, ScoredEvent, UserProfile } from "@/lib/types";
 import { daysBetween, todayISO } from "@/lib/utils";
@@ -32,7 +32,7 @@ export const PublicUCLCareersProvider: EventSourceProvider = {
   label: "UCL Careers (public listings)",
   isLive: true,
   async fetchEvents({ university }) {
-    if (university !== "UCL") return [];
+    if (!isUCL(university)) return [];
     try {
       const res = await fetch("/api/events/live?source=ucl-careers");
       if (!res.ok) return [];

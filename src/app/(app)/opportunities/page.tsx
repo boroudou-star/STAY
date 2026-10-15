@@ -82,6 +82,24 @@ export default function OpportunitiesPage() {
         </div>
       </div>
 
+      {(d.profile.targetCompanies ?? []).length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="font-semibold">Your target companies:</span>
+          {d.profile.targetCompanies!.map((c) => (
+            <a
+              key={c}
+              href={`https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(`${c} ${d.profile.studyStatus === "student" ? "graduate" : "junior"}`)}&location=United%20Kingdom`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-line bg-card px-3 py-1 font-medium hover:border-ink/30"
+            >
+              {c} roles <ExternalLink size={11} />
+            </a>
+          ))}
+          <span className="text-[12px] text-muted">Opens a live LinkedIn Jobs search. Matching roles below are marked 🎯.</span>
+        </div>
+      )}
+
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <Tabs
           value={view}
@@ -173,6 +191,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge tone="violet">{OPPORTUNITY_TYPE_LABEL[o.type]}</Badge>
             {o.isDemo ? <DemoBadge /> : <LiveBadge label={o.sourceName} />}
+            {s.factors.some((f) => f.key === "target") && <Badge tone="lime">🎯 Target company</Badge>}
             {s.eligible === false && <Badge tone="red">Likely not eligible</Badge>}
             {applied && (
               <Badge tone="teal">

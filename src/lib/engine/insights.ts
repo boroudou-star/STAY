@@ -7,16 +7,26 @@ import { seededIndex, tokens, topTerms, wordCount } from "./text";
 /* Areas & preferences                                                 */
 /* ------------------------------------------------------------------ */
 
+/** Areas to follow by default: the main goal first, then industries the user named, then other goals. */
 export function defaultAreas(p: UserProfile): InsightAreaId[] {
   const out: InsightAreaId[] = [];
-  for (const g of p.careerGoals) for (const a of TRACK_TO_AREAS[g] ?? []) if (!out.includes(a)) out.push(a);
+  const add = (a: InsightAreaId) => !out.includes(a) && out.push(a);
+  const [main, ...rest] = p.careerGoals;
+  if (main) (TRACK_TO_AREAS[main] ?? []).slice(0, 1).forEach(add);
+  for (const ind of p.preferredIndustries ?? []) {
+    const w = ind.toLowerCase().split(/[^a-z]+/)[0];
+    const hit = w.length > 1 && INSIGHT_AREAS.find((a) => a.id === w || a.label.toLowerCase().split(/[^a-z]+/).includes(w));
+    if (hit) add(hit.id);
+  }
+  if (main) (TRACK_TO_AREAS[main] ?? []).forEach(add);
+  for (const g of rest) for (const a of TRACK_TO_AREAS[g] ?? []) add(a);
   return out.length ? out.slice(0, 3) : ["tech"];
 }
 
 export function effectivePrefs(p: UserProfile, prefs?: InsightPrefs | null): InsightPrefs {
   return {
     areas: prefs?.areas?.length ? prefs.areas : defaultAreas(p),
-    companies: prefs?.companies ?? [],
+    companies: prefs?.companies ?? (p.targetCompanies ?? []).slice(0, 4),
     planStart: prefs?.planStart,
     planDone: prefs?.planDone ?? [],
   };

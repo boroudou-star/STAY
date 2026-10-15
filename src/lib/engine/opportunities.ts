@@ -252,6 +252,11 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
       detail: !known ? "Company type not verified" : hit ? `${o.companyType}, matches your preference` : `${o.companyType}, not one of your preferred company types`,
     });
   }
+  // Target companies: a boost when it matches, never a penalty when it doesn't
+  const target = isTargetCompany(o.company, p.targetCompanies);
+  if (target) {
+    factors.push({ key: "target", label: "Target company", weight: 0.08, score: 1, status: "good", detail: `${o.company} is one of your target companies` });
+  }
   const salaryNum = parseSalary(o.salary);
   if (p.minSalary) {
     const ex = o.isDemo ? " (example figure)" : "";
@@ -288,6 +293,7 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
   score = Math.round(score);
 
   const fitBits: string[] = [];
+  if (target) fitBits.push(`${o.company} is on your target list`);
   if (trackHits.length) fitBits.push(`fits your ${TRACK_MAP[trackHits[0]].noun} goal`);
   if (matched.length) fitBits.push(`you already show ${matched.slice(0, 3).join(", ")}`);
   if (missing.length) fitBits.push(`building ${missing.slice(0, 2).map((m) => displaySkill(canonicalSkill(m))).join(" and ")} would strengthen it`);
@@ -299,6 +305,16 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
         : "Limited overlap with your current profile.";
 
   return { opportunity: o, score, factors, missingSkills: missing, matchedSkills: matched, eligible, fitSummary };
+}
+
+/** "Google" matches "Google DeepMind" and the other way round. Case-insensitive. */
+export function isTargetCompany(company: string, targets: string[] = []) {
+  const c = company.toLowerCase().trim();
+  if (!c) return false;
+  return targets.some((t) => {
+    const x = t.toLowerCase().trim();
+    return x.length > 1 && (c === x || c.startsWith(`${x} `) || x.startsWith(`${c} `) || c.includes(x));
+  });
 }
 
 function capitalise(s: string) {

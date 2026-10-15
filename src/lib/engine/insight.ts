@@ -1,4 +1,4 @@
-import { TRACK_MAP } from "@/data/careers";
+import { CHALLENGES, TRACK_MAP } from "@/data/careers";
 import type { RoadmapTask, ScoredEvent, ScoredOpportunity, UserProfile } from "@/lib/types";
 import { daysBetween, todayISO } from "@/lib/utils";
 import { computeHorizon, topPriorities } from "./roadmap";
@@ -34,6 +34,10 @@ export function insightFacts({ profile: p, tasks, opportunities, events, today =
     topOpportunity: opportunities.find((o) => o.eligible !== false)?.opportunity.title ?? null,
     topEvent: events[0]?.event.name ?? null,
     needsSponsorship: !p.visa.skipped && p.visa.needsSponsorship === "yes",
+    targetCompanies: p.targetCompanies ?? [],
+    hardest: (p.challenges ?? []).map((c) => CHALLENGES.find((x) => x.id === c)?.short ?? c),
+    hoursPerWeek: p.weeklyHours ?? null,
+    ownGoal: p.goalStatement?.trim() || null,
   };
 }
 
@@ -57,6 +61,8 @@ export function deterministicInsight(input: InsightInput): string {
   if (gap) actions.push(`closing your ${gap} gap`);
   if (event) actions.push(`attending ${event}`);
   const tail = actions.length ? ` Your highest-value moves this month: ${actions.join(", ")}.` : "";
+  const hard = f.hardest[0] ? ` You said ${f.hardest[0]} is the hardest part, so those tasks are first in your week${f.hoursPerWeek ? ` (${f.hoursPerWeek} hours)` : ""}.` : "";
+  const target = f.targetCompanies[0] ? ` Keep ${f.targetCompanies.slice(0, 2).join(" and ")} in view: check when they open applications.` : "";
   const visa = f.needsSponsorship ? " Ask about sponsorship early with every employer you shortlist." : "";
-  return `${lead}${tail}${visa}`;
+  return `${lead}${tail}${hard}${target}${visa}`;
 }

@@ -27,6 +27,28 @@ Deploy: import the repo into Vercel (framework: Next.js, no settings needed). Ad
 
 Without a key, every feature falls back to deterministic logic.
 
+## For real users
+
+Anyone can build their own plan at **Build my plan** (`/onboarding`, about 5 minutes, no account):
+
+| Step | What it asks | What it changes |
+|---|---|---|
+| You | Name, studying or graduated, a one-line goal | Dashboard greeting and goal |
+| Studies | University (any UK university), subject, year, graduation | Timing of the whole plan; events and alumni searches |
+| Goals | Careers, roles, **target companies**, industries | Tasks, role scores (target companies boosted 🎯), insight areas, coffee chats, interview company |
+| Experience | Skills (tap-to-add suggestions for your field), experience, CV paste | Skill gaps, role scores, CV interview questions |
+| Starting point | CV / LinkedIn / societies / outreach already done, applications and interviews so far, **what feels hardest**, **hours a week** | Done steps are pre-ticked, applications count towards goals, hard areas move up and come sooner, deadlines are paced to your hours |
+| Preferences | Cities, company and role types, minimum salary, priorities | Role ranking |
+| Visa | Sponsorship, visa type and expiry (optional) | Sponsorship flags and visa milestones |
+| Review | Every answer with Edit links and a plain-English "how STAY will tailor your plan" | |
+
+- Answers are saved as you go, so a refresh doesn't lose them.
+- The **Profile** page edits every answer, shows a profile-strength score with the most useful missing answers, and has **Download my data**, **Restore from a file** and **Delete my data**.
+- The dashboard explains how the plan was tailored and prompts for missing answers.
+- Students outside UCL get search links for their own careers service and societies, plus paste-an-announcement; UCL example events are only shown to UCL students.
+
+**Demo and real data are separate.** The demo (Alex) lives in its own space in the browser (`stay-demo-v1`); your own data is in `stay-state-v1`. Trying or resetting the demo never touches your plan, and a banner offers "Back to my plan".
+
 ## Judge demo (2 minutes)
 
 1. Landing → **Try the demo** (loads fictional Alex Chen, final-year CS at UCL).
@@ -35,9 +57,10 @@ Without a key, every feature falls back to deterministic logic.
 4. Campus Events → **Add to roadmap**; **Add from announcement** and paste a society post.
 5. Coffee Chats → 5 targeted searches → **Generate message** → edit → **Copy**.
 6. Roadmap → tick a task (confetti + progress updates).
-7. Profile → change main goal to Consulting → **Save & adapt roadmap**. Completed tasks are kept.
+7. Profile → change main goal to Consulting → **Save & adapt my plan**. Completed tasks are kept.
+8. Landing → **Build my plan** to show a real user's onboarding; the demo stays untouched.
 
-**Reset demo** is on the Profile page.
+**Reset demo** is on the Profile page while viewing the demo.
 
 ## What's live vs demo
 
@@ -117,7 +140,7 @@ src/
 
 ## Known limitations
 
-- Progress is stored in the browser (no accounts yet); clearing site data resets it.
+- Progress is stored in the browser (no accounts yet); clearing site data resets it. Use Profile → Download my data to keep a copy or move devices. Swapping `src/lib/persistence.ts` for a database adds accounts later.
 - Demo deadlines are generated relative to today so the demo stays fresh — they are labelled "example".
 - Recruitment-cycle timing uses typical UK patterns, not employer-verified dates.
 - Live UCL Careers parsing depends on the page structure and an AI key; if it fails, the UI links to the source instead.
