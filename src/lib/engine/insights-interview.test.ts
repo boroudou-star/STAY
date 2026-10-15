@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { demoProfile } from "@/data/demo-profile";
 import { CASES } from "@/data/interview";
 import type { FeedItem, InsightEntry } from "@/lib/types";
-import { buildInsightProfile, dailyBrief, defaultAreas, parseRss, reflectHeuristic, weekPlan } from "./insights";
+import { buildInsightProfile, dailyBrief, defaultAreas, parseRss, weekPlan } from "./insights";
 import { checkCaseStage, cvQuestions, overall, pickMockQuestions, questionSet, scoreAnswer } from "./interview";
 import { activityStats, AUTO_COMPLETE_RULES } from "./roadmap";
 
@@ -42,17 +42,6 @@ describe("insights", () => {
     expect(brief.news).toHaveLength(0);
     expect(brief.questions.length).toBeGreaterThanOrEqual(2);
     expect(brief.primer.primer.body.length).toBeGreaterThan(50);
-  });
-
-  it("guides thinking with a follow-up targeting what's missing", () => {
-    const weak = reflectHeuristic("q", "It is interesting.");
-    expect(weak.checks.find((c) => c.key === "view")?.met).toBe(false);
-    expect(weak.followUp).toMatch(/opinion|view/i);
-    const strong = reflectHeuristic(
-      "q",
-      "I think banks will lose share in payments because fintechs ship faster — for example, one app cut fees by 30%. This means incumbents will likely partner rather than build, which could lead to more acquisitions next year. I'm not fully convinced regulation will slow this.",
-    );
-    expect(strong.checks.every((c) => c.met)).toBe(true);
   });
 
   it("builds an insight profile from the user's own entries", () => {
@@ -138,23 +127,17 @@ describe("interview prep", () => {
   });
 });
 
-describe("guided reflections", () => {
-  it("breaks every daily question into small steps", async () => {
-    const { dailyBrief: brief, companySteps, newsSteps, joinSteps, answersOnly } = await import("./insights");
+describe("daily questions", () => {
+  it("gives every daily question a topic for the expert discussion", async () => {
+    const { dailyBrief: brief, noteSections } = await import("./insights");
     const b = brief({ areas: ["consulting"], companies: ["Accenture"], planDone: [] }, [{ id: "n", kind: "news", title: "Accenture wins deal", source: "X", url: "https://x.test", isLive: true }], TODAY);
-    for (const q of b.questions) expect(q.steps.length).toBeGreaterThanOrEqual(3);
-    expect(newsSteps("Accenture").at(-1)?.prompt).toContain("Accenture");
-    for (let v = 0; v < 5; v++) expect(companySteps("Monzo", v).some((s) => s.prompt.includes("Monzo"))).toBe(true);
-    const steps = newsSteps();
-    const ans = { what: "Rates held", view: "I think they cut next" };
-    expect(joinSteps(steps, ans)).toContain("What happened: Rates held");
-    expect(answersOnly(steps, ans)).toBe("Rates held I think they cut next");
-  });
-
-  it("prefills reflection steps from reading notes", async () => {
-    const { prefillFromNotes, noteSections } = await import("./insights");
+    expect(b.questions.map((q) => q.topic.kind)).toEqual(["primer", "news", "company"]);
+    expect(b.questions[1].topic.company).toBe("Accenture");
+    for (const q of b.questions) expect(q.topic.question).toBe(q.text);
+    const offline = brief({ areas: ["ai", "tech"], companies: [], planDone: [] }, [], TODAY);
+    const concept = offline.questions.find((q) => q.topic.kind === "concept");
+    expect(concept?.topic.concept).toBeTruthy();
     expect(noteSections("news").map((s) => s.key)).toContain("take");
-    expect(prefillFromNotes("news", { summary: "S", players: "P", take: "T" })).toEqual({ what: "S", who: "P", view: "T" });
   });
 });
 

@@ -240,6 +240,33 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   );
 }
 
+/** A panel that slides in from the right (full screen on phones). The page underneath stays put. */
+export function Drawer({ open, onClose, label, children }: { open: boolean; onClose: () => void; label: string; children: ReactNode }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={label}>
+      <button className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} aria-label="Close panel" />
+      <div className="relative flex h-full w-full flex-col overflow-y-auto bg-card shadow-[var(--shadow-lift)] animate-fade-up sm:max-w-xl">
+        <button onClick={onClose} className="absolute right-3 top-3 z-10 rounded-lg p-2 text-muted hover:bg-paper-2 hover:text-ink" aria-label="Close">
+          <X size={18} />
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- States ---------------- */
 
 export function Skeleton({ className }: { className?: string }) {

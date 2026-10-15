@@ -1,5 +1,5 @@
 import { AREA_MAP, INSIGHT_AREAS, TRACK_TO_AREAS, WEEK_PLAN, type Primer } from "@/data/insights";
-import type { FeedItem, InsightAreaId, InsightEntry, InsightPrefs, ReflectionStep, UserProfile } from "@/lib/types";
+import type { ExpertTopic, FeedItem, InsightAreaId, InsightEntry, InsightPrefs, UserProfile } from "@/lib/types";
 import { addDays, daysBetween, todayISO } from "@/lib/utils";
 import { seededIndex, tokens, topTerms, wordCount } from "./text";
 
@@ -75,110 +75,18 @@ export interface BriefQuestion {
   area?: InsightAreaId;
   company?: string;
   item?: FeedItem;
-  steps: ReflectionStep[];
+  /** What the expert discussion is about */
+  topic: ExpertTopic;
 }
 
-/* ------------------------------------------------------------------ */
-/* Breaking a big question into small, answerable steps                */
-/* ------------------------------------------------------------------ */
+const itemRef = (i: FeedItem) => ({ title: i.title, url: i.url, source: i.source, kind: i.kind });
 
-export type QuestionShape = "news" | "podcast" | "company" | "general";
-
-const step = (key: string, label: string, prompt: string, hint: string, optional = false): ReflectionStep => ({ key, label, prompt, hint, optional });
-
-export function newsSteps(company?: string): ReflectionStep[] {
-  return [
-    step("what", "What happened", "In one sentence, what happened? Stick to the facts in the story.", "e.g. The Bank of England held interest rates at…"),
-    step("who", "Who is affected", `Who wins and who loses from this? Name at least one company, customer group or competitor.`, "e.g. Mortgage lenders win because… First-time buyers lose because…"),
-    step("why", "Why now", "Why is this happening now? Think about money, technology, regulation or customer behaviour.", "e.g. Because inflation has fallen faster than expected…"),
-    step("view", "Your view", "What do you think happens next, and why? Pick a side.", "I think… because…"),
-    step(
-      "line",
-      "Interview line",
-      company ? `How would you bring this up in an interview at ${company}? Two sentences.` : "How would you bring this up in an interview? Two sentences.",
-      "I've been following… It matters for your team because…",
-      true,
-    ),
-  ];
-}
-
-export function podcastSteps(): ReflectionStep[] {
-  return [
-    step("what", "The episode", "Which episode did you listen to, and what was it mainly about?", "e.g. An interview with a fintech founder about…"),
-    step("idea", "One idea", "What is one idea or claim that stood out to you?", "e.g. They argued that…"),
-    step("view", "Agree or not", "Do you agree? Why, or why not?", "I agree, because… / I'm not convinced, because…"),
-    step("link", "Your career", "How does this connect to the jobs or companies you're interested in?", "This matters for analysts because…", true),
-  ];
-}
-
-const COMPANY_STEPS: ((c: string) => ReflectionStep[])[] = [
-  (c) => [
-    step("customers", "Customers", `Who pays ${c}? Businesses, consumers, governments, or a mix?`, "e.g. Mostly small businesses and…"),
-    step("product", "What they buy", "What exactly do those customers pay for?", "e.g. A current account, card payments and…"),
-    step("model", "How they pay", "How does the money come in? Subscription, fees per use, commission, ads, licences?", "e.g. A small fee on every card payment, plus…"),
-    step("stay", "Why they stay", `Why do customers keep paying ${c} instead of switching?`, "e.g. Because switching is a hassle and…"),
-    step("view", "Your view", "Which part of the business do you think grows fastest, and why?", "I think… because…", true),
-  ],
-  (c) => [
-    step("rivals", "Competitors", `Name 2 or 3 competitors of ${c}.`, "e.g. X, Y and Z"),
-    step("edge", "Where they win", `Where is ${c} stronger than those rivals? One specific strength.`, "e.g. Faster product releases…"),
-    step("weak", "Where they're weaker", `Where is ${c} weaker or more exposed?`, "e.g. Smaller sales team in…"),
-    step("move", "Your move", `If you worked there, what would you do to widen the gap?`, "I would… because…"),
-  ],
-  (c) => [
-    step("risk", "Name the risk", "Name one risk: regulation, competition, technology, the economy or reputation.", "e.g. New rules on how AI can be used in…"),
-    step("impact", "How it hurts", `How exactly would it hurt ${c}? Revenue, costs, customers or brand?`, "e.g. It would slow sales to banks because…"),
-    step("odds", "How likely, how soon", "How likely is it, and when could it happen?", "e.g. Likely within two years, because…"),
-    step("response", "The response", `What should ${c} do about it?`, "They should… so that…"),
-  ],
-  (c) => [
-    step("team", "Where", `Which team, product or area of ${c} would you want to join?`, "e.g. The risk analytics team…"),
-    step("problem", "The problem", "What problem would you want to work on there?", "e.g. Reducing false fraud alerts…"),
-    step("fit", "Your fit", "Which of your skills or experiences fits that work? Be specific.", "e.g. My dissertation project on…"),
-    step("learn", "What you'd learn", "What would you hope to learn in that first year?", "e.g. How models are monitored in production…", true),
-  ],
-  (c) => [
-    step("working", "What works", `What is working well at ${c} today?`, "e.g. Their brand with students…"),
-    step("problem", "The problem", "What is one problem or missed opportunity?", "e.g. They rely on one product for most revenue…"),
-    step("change", "Your change", "What would you change first, and why that first?", "I would… because…"),
-    step("measure", "How you'd know", "How would you know it worked? Name one number you'd track.", "e.g. Revenue from new products as a share of total…"),
-  ],
-];
-
-export function companySteps(company: string, variant: number) {
-  return COMPANY_STEPS[variant % COMPANY_STEPS.length](company);
-}
-
-export function generalSteps(question: string): ReflectionStep[] {
-  return [
-    step("idea", "In your words", "Before answering, what is this question really about? One or two sentences, as if explaining to a friend.", "It's about how… "),
-    step("example", "One example", "Give one real example you know: a company, product, news story or something from your own life.", "e.g. When Spotify… / In my part-time job…"),
-    step("answer", "Your answer", question, "I think… because…"),
-    step("sowhat", "So what", "Why would an employer in this field care about this?", "It matters because…", true),
-  ];
-}
-
-export function stepsFor(shape: QuestionShape, question: string, opts: { company?: string; variant?: number } = {}): ReflectionStep[] {
-  if (shape === "news") return newsSteps(opts.company);
-  if (shape === "podcast") return podcastSteps();
-  if (shape === "company" && opts.company) return companySteps(opts.company, opts.variant ?? 0);
-  return generalSteps(question);
-}
-
-/** Joins step answers into one readable entry (labels kept so the notebook reads well). */
-export function joinSteps(steps: ReflectionStep[], answers: Record<string, string>) {
-  return steps
-    .filter((s) => answers[s.key]?.trim())
-    .map((s) => `${s.label}: ${answers[s.key].trim()}`)
-    .join("\n");
-}
-
-/** Answers only, for scoring (labels would distort keyword checks). */
-export function answersOnly(steps: ReflectionStep[], answers: Record<string, string>) {
-  return steps
-    .map((s) => answers[s.key]?.trim())
-    .filter(Boolean)
-    .join(" ");
+/** Topic for a discussion about a news story or podcast. */
+export function feedTopic(item: FeedItem, companies: string[], notes?: Record<string, string>): ExpertTopic {
+  const company = item.company ?? companies.find((co) => item.title.toLowerCase().includes(co.toLowerCase()));
+  if (item.kind === "podcast")
+    return { kind: "podcast", question: `After listening to "${item.title}": what's one idea you agreed or disagreed with, and why?`, area: item.area, item: itemRef(item), notes };
+  return { kind: "news", question: newsQuestion(item, companies), area: item.area, company, item: itemRef(item), notes };
 }
 
 export interface DailyBrief {
@@ -193,10 +101,6 @@ export function newsQuestion(item: FeedItem, companies: string[]): string {
   const c = companies.find((co) => item.title.toLowerCase().includes(co.toLowerCase())) ?? item.company;
   if (c) return `"${item.title}": what does this mean for ${c}, and how would you bring it up in an interview there?`;
   return `"${item.title}": what happened, why does it matter, and what do you think happens next?`;
-}
-
-export function companyVariant(dayIdx: number) {
-  return dayIdx % 5;
 }
 
 export function companyQuestion(company: string, dayIdx: number) {
@@ -230,19 +134,23 @@ export function dailyBrief(prefs: InsightPrefs, live: FeedItem[], date = todayIS
   const podcasts = live.filter((i) => i.kind === "podcast").slice(0, 4);
 
   const primerQ = primer.questions[day % primer.questions.length];
-  const questions: BriefQuestion[] = [{ id: `q-${date}-primer`, text: primerQ, area, steps: generalSteps(primerQ) }];
+  const questions: BriefQuestion[] = [
+    { id: `q-${date}-primer`, text: primerQ, area, topic: { kind: "primer", question: primerQ, area, primer: { title: primer.title, body: primer.body } } },
+  ];
   if (mixed[0]) {
-    const company = mixed[0].company ?? prefs.companies.find((co) => mixed[0].title.toLowerCase().includes(co.toLowerCase()));
-    questions.push({ id: `q-${date}-news`, text: newsQuestion(mixed[0], prefs.companies), area: mixed[0].area, company: mixed[0].company, item: mixed[0], steps: newsSteps(company) });
+    const topic = feedTopic(mixed[0], prefs.companies);
+    questions.push({ id: `q-${date}-news`, text: topic.question, area: mixed[0].area, company: topic.company, item: mixed[0], topic });
   }
   if (prefs.companies.length) {
     const c = prefs.companies[day % prefs.companies.length];
-    questions.push({ id: `q-${date}-co`, text: companyQuestion(c, day), company: c, steps: companySteps(c, companyVariant(day)) });
+    const text = companyQuestion(c, day);
+    questions.push({ id: `q-${date}-co`, text, company: c, topic: { kind: "company", question: text, company: c, area } });
   }
   if (questions.length < 3) {
     const other = AREA_MAP[areas[(day + 1) % areas.length]];
-    const text = `Explain "${other.keyConcepts[day % other.keyConcepts.length]}" (${other.label}) as if to a friend, and say why it matters to employers.`;
-    questions.push({ id: `q-${date}-concept`, text, area: other.id, steps: generalSteps(text) });
+    const concept = other.keyConcepts[day % other.keyConcepts.length];
+    const text = `Explain "${concept}" (${other.label}) as if to a friend, and say why it matters to employers.`;
+    questions.push({ id: `q-${date}-concept`, text, area: other.id, topic: { kind: "concept", question: text, area: other.id, concept } });
   }
   return { date, primer: { area, primer }, news: mixed, podcasts, questions };
 }
@@ -273,43 +181,17 @@ export function weekPlan(prefs: InsightPrefs, today = todayISO()): PlanDay[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Guided reflection (deterministic fallback for AI feedback)          */
+/* How strong a notebook entry is (for "strongest" talking points)     */
 /* ------------------------------------------------------------------ */
 
-export interface ReflectionCheck {
-  key: "view" | "evidence" | "implication" | "depth";
-  label: string;
-  met: boolean;
-}
-
-export interface ReflectionFeedback {
-  checks: ReflectionCheck[];
-  feedback: string;
-  followUp: string;
-  source: "ai" | "rules";
-}
-
-export function reflectHeuristic(question: string, answer: string): ReflectionFeedback {
-  const a = answer.toLowerCase();
-  const words = wordCount(answer);
-  const checks: ReflectionCheck[] = [
-    { key: "view", label: "States your own view", met: /\b(i think|i believe|in my view|my view|i'd argue|i would argue|i expect|i'm not convinced|i disagree|i agree)\b/.test(a) },
-    { key: "evidence", label: "Backs it with evidence or an example", met: /\d|%|£|\bfor example\b|\bsuch as\b|\bbecause\b|\bdata\b|\breport/.test(a) },
-    { key: "implication", label: "Explains the 'so what'", met: /\b(so |therefore|which means|this means|as a result|implication|next|in future|will likely|could lead)\b/.test(a) },
-    { key: "depth", label: "Enough depth (45+ words)", met: words >= 45 },
-  ];
-  const missing = checks.filter((c) => !c.met);
-  const feedback = !missing.length
-    ? "Strong reflection. You take a position, support it and explain why it matters. Save this; it's interview-ready material."
-    : `Good start. To make this interview-ready: ${missing.map((m) => m.label.toLowerCase()).join("; ")}.`;
-  const follow: Record<ReflectionCheck["key"], string> = {
-    view: "What's your own opinion here? Would you bet for or against it, and why?",
-    evidence: "What evidence or example supports your view? Even one number or case helps.",
-    implication: "So what? Who wins or loses because of this, and what might happen next?",
-    depth: "Can you add one more layer: a cause, a consequence, or a counter-argument?",
-  };
-  const followUp = missing[0] ? follow[missing[0].key] : `What would change your mind about this? (${question.slice(0, 60)}${question.length > 60 ? "…" : ""})`;
-  return { checks, feedback, followUp, source: "rules" };
+export function entryStrength(e: InsightEntry) {
+  if (e.summary) return { strong: 4, developing: 2, weak: 0 }[e.summary.verdict] + Math.min(1, wordCount(e.answer) / 150);
+  const a = e.answer.toLowerCase();
+  let s = 0;
+  if (/\b(i think|i believe|in my view|i'd argue|i expect|i disagree|i agree)\b/.test(a)) s++;
+  if (/\b(because|which means|therefore|as a result|due to)\b/.test(a)) s++;
+  if (/\d|\bfor example\b|\bsuch as\b/.test(a)) s++;
+  return s + Math.min(1, wordCount(e.answer) / 150);
 }
 
 export function tagsFor(text: string, area?: InsightAreaId, company?: string) {
@@ -365,7 +247,8 @@ export function buildInsightProfile(entries: InsightEntry[], today = todayISO())
     companyWords,
   );
   const scored = entries
-    .map((e) => ({ e, s: reflectHeuristic(e.question, e.answer).checks.filter((c) => c.met).length + Math.min(2, wordCount(e.answer) / 100) }))
+    .filter((e) => !e.summary || e.summary.verdict !== "weak")
+    .map((e) => ({ e, s: entryStrength(e) }))
     .sort((a, b) => b.s - a.s);
   const recentDays = new Set(entries.filter((e) => daysBetween(e.date, today) <= 14).map((e) => e.date)).size;
   const readiness = Math.min(100, Math.round(Math.min(entries.length, 15) * 4 + recentDays * 2 + Math.min(byCompanyMap.size, 3) * 5 + Math.min(byAreaMap.size, 3) * 3));
@@ -426,12 +309,6 @@ export function readingTips(kind: FeedItem["kind"]) {
   return kind === "podcast"
     ? ["Pause after each section and write one line.", "Note who is speaking: a founder and a regulator see things differently.", "Write down one claim you'd challenge."]
     : ["Read the headline and first paragraph, then write the summary before reading on.", "Look for numbers: money, growth, people affected.", "Ask who benefits, who loses, and what happens next."];
-}
-
-/** Map notes onto the reflection steps so the user doesn't retype. */
-export function prefillFromNotes(kind: FeedItem["kind"], sections: Record<string, string>): Record<string, string> {
-  if (kind === "podcast") return { what: sections.episode ?? "", idea: sections.ideas ?? "", view: sections.take ?? "" };
-  return { what: sections.summary ?? "", who: sections.players ?? "", view: sections.take ?? "" };
 }
 
 export function noteWordCount(sections: Record<string, string>) {

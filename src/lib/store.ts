@@ -8,7 +8,7 @@ import { activityStats, AUTO_COMPLETE_RULES } from "@/lib/engine/roadmap";
 import { canonicalSkill } from "@/data/careers";
 import { buildRoadmap } from "@/lib/services/catalog";
 import { stayStorage, STORAGE_KEY } from "@/lib/persistence";
-import type { Activity, CareerEvent, ContactTracking, FeedItem, InsightEntry, InsightPrefs, MockSession, ReadingNote, StoryEntry, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
+import type { Activity, CareerEvent, ChatTurn, ContactTracking, FeedItem, InsightEntry, InsightPrefs, MockSession, ReadingNote, StoryEntry, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
 import { addDays, daysBetween, todayISO, uid } from "@/lib/utils";
 
 export interface ChangeSummary {
@@ -51,6 +51,8 @@ interface StayState {
   skillsFromTasks: Record<string, string>;
   /** Industry insights */
   insightPrefs: InsightPrefs | null;
+  /** Unfinished expert discussions, keyed by question */
+  insightChats: Record<string, ChatTurn[]>;
   journal: InsightEntry[];
   readingNotes: ReadingNote[];
   /** Interview prep */
@@ -61,6 +63,7 @@ interface StayState {
   setInterviewCompany: (c: string) => void;
 
   setInsightPrefs: (patch: Partial<InsightPrefs>) => void;
+  setInsightChat: (key: string, turns: ChatTurn[] | null) => void;
   startReadingNote: (item: FeedItem) => string;
   updateReadingNote: (id: string, patch: Partial<Pick<ReadingNote, "sections" | "reflectedEntryId">>) => void;
   deleteReadingNote: (id: string) => void;
@@ -116,6 +119,7 @@ const initial = {
   liveOpps: [] as Opportunity[],
   skillsFromTasks: {} as Record<string, string>,
   insightPrefs: null as InsightPrefs | null,
+  insightChats: {} as Record<string, ChatTurn[]>,
   journal: [] as InsightEntry[],
   readingNotes: [] as ReadingNote[],
   mockSessions: [] as MockSession[],
@@ -131,7 +135,7 @@ export function activityOf(s: Snapshot): Activity {
     appliedOpps: s.appliedOpps,
     contacts: s.contacts,
     completedTemplateIds: s.tasks.filter((t) => t.status === "completed" && t.templateId).map((t) => t.templateId!),
-    insightEntries: s.journal?.filter((e) => !e.parentId).length ?? 0,
+    insightEntries: s.journal?.filter((e) => !e.parentId && e.summary?.verdict !== "weak").length ?? 0,
     mockInterviews: s.mockSessions?.filter((m) => m.completedAt).length ?? 0,
   };
 }
@@ -386,6 +390,16 @@ export const useStay = create<StayState>()(
           ),
         })),
       deleteReadingNote: (id) => set((s) => ({ readingNotes: s.readingNotes.filter((n) => n.id !== id) })),
+      setInsightChat: (key, turns) =>
+        set((s) => {
+          const next = { ...(s.insightChats ?? {}) };
+          if (turns) next[key] = turns.slice(-40);
+          else delete next[key];
+          // Keep storage small: only the 20 most recent drafts
+          const keys = Object.keys(next);
+          if (keys.length > 20) for (const k of keys.slice(0, keys.length - 20)) delete next[k];
+          return { insightChats: next };
+        }),
       setInsightPrefs: (patch) =>
         set((s) => ({ insightPrefs: { areas: [], companies: [], planDone: [], ...(s.insightPrefs ?? {}), ...patch } })),
       addInsightEntry: (e) => {

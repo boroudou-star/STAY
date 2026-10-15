@@ -332,8 +332,11 @@ export interface InsightEntry {
   question: string;
   answer: string;
   item?: { title: string; url?: string; source: string; kind: FeedItemKind };
-  /** Step-by-step answers when the question was broken down */
+  /** Step-by-step answers (older entries) */
   steps?: { prompt: string; answer: string }[];
+  /** The discussion with the STAY industry expert */
+  transcript?: ChatTurn[];
+  summary?: ExpertSummary;
   tags: string[];
   feedback?: string;
   followUp?: string;
@@ -341,13 +344,36 @@ export interface InsightEntry {
   createdAt: string;
 }
 
-/** A small, answerable piece of a bigger reflection question. */
-export interface ReflectionStep {
-  key: string;
-  label: string;
-  prompt: string;
-  hint: string;
-  optional?: boolean;
+/** One message in a discussion with the STAY industry expert. */
+export interface ChatTurn {
+  role: "expert" | "user";
+  text: string;
+}
+
+/** What the discussion is about. Everything the expert knows about the topic comes from here. */
+export interface ExpertTopic {
+  kind: "news" | "podcast" | "company" | "concept" | "primer" | "plan";
+  question: string;
+  area?: InsightAreaId;
+  company?: string;
+  concept?: string;
+  item?: { title: string; url?: string; source: string; kind: FeedItemKind };
+  primer?: { title: string; body: string };
+  /** The user's own reading notes, if they took any */
+  notes?: Record<string, string>;
+}
+
+/** Honest end-of-discussion assessment. */
+export interface ExpertSummary {
+  verdict: "strong" | "developing" | "weak";
+  headline: string;
+  strengths: string[];
+  gaps: string[];
+  corrections: string[];
+  keyPoints: string[];
+  interviewAnswer: string;
+  nextQuestion: string;
+  source: "ai" | "rules";
 }
 
 /** Notes taken while reading an article or listening to a podcast. */

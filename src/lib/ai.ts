@@ -42,6 +42,24 @@ export async function aiText(system: string, user: string, maxTokens = 400): Pro
   }
 }
 
+/** A multi-turn conversation. `messages` must start with a user turn and alternate. */
+export async function aiChat(system: string, messages: { role: "user" | "assistant"; content: string }[], maxTokens = 400): Promise<string | null> {
+  const c = getClient();
+  if (!c) return null;
+  try {
+    const res = await c.messages.create({ model: MODEL, max_tokens: maxTokens, system, messages });
+    const text = res.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b as { text: string }).text)
+      .join("")
+      .trim();
+    return text || null;
+  } catch (err) {
+    console.error("[ai] chat call failed", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 /** Ask for JSON only, extract the first JSON object, and validate it at runtime with zod. */
 export async function aiJSON<T>(system: string, user: string, schema: z.ZodType<T>, maxTokens = 800): Promise<T | null> {
   const raw = await aiText(`${system}\n\nRespond with a single JSON object only. No prose, no markdown fences.`, user, maxTokens);

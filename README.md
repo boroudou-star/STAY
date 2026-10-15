@@ -21,7 +21,7 @@ Deploy: import the repo into Vercel (framework: Next.js, no settings needed). Ad
 
 | Variable | Required | What it does |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | No | Enables AI insight text, outreach polishing, announcement extraction, CV skill extraction and live UCL Careers parsing. Server-side only. |
+| `ANTHROPIC_API_KEY` | No | Enables the AI industry expert in Insights, AI insight text, outreach polishing, announcement extraction, CV skill extraction and live UCL Careers parsing. Server-side only. |
 | `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5-5`. |
 | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | No | Live UK job listings from the Adzuna API (free developer keys), merged into the same scoring engine. |
 
@@ -57,8 +57,8 @@ Needs access to integrate later: Adzuna keys (code ready), other job APIs (e.g. 
 
 - Follow up to 4 **areas** (AI, tech, data, consulting, investment banking, markets & fintech, healthcare, biotech, marketing, energy, public sector) and up to 4 **target companies**.
 - **Today**: live news (Google News RSS, UK edition, last 7 days — headlines and links only) and podcasts (Apple iTunes Search API), plus a STAY-written primer and 3 daily questions.
-- **Guided reflection**: every question is broken into 3 to 5 small steps (e.g. for news: what happened, who is affected, why now, your view, an interview line; for companies: customers, what they buy, how they pay, why they stay). Saved to your notebook with coach feedback and one follow-up question.
-- **Reading notes** (`/insights/notes/[id]`): clicking a story or podcast opens it in a new tab and a notes page in STAY (summary, facts, who is involved, questions, my take). "Reflect on this" turns the notes into a guided reflection, pre-filled from what you wrote.
+- **Expert discussion** (`src/lib/engine/expert.ts`, `src/data/insight-expert.ts`, `/api/ai/insight-chat`): every question opens a chat with an industry expert for that area (AI, consulting, banking, healthcare and so on). The expert reacts to what the student actually wrote, corrects answers that are off topic, a list of names, "idk" or too short, explains the idea when they're stuck, and only goes deeper (example → how it works → your view → the counterargument → why it matters to the employer) once they've given a real answer. It never repeats a question and changes approach if told it is repeating itself. "Wrap up & save" gives an honest verdict (interview-ready / developing / not there yet), corrections, what's missing, key points and an interview answer built only from the student's words with [Add: …] gaps. Drafts are kept until saved; the transcript is stored in the notebook. With `ANTHROPIC_API_KEY` the expert is Claude; without it, a rule-based expert uses STAY's knowledge base (55 concepts across 11 areas).
+- **Reading notes**: clicking a story or podcast opens it in a new tab and a notes panel on the Insights page (STAY never leaves the page). "Discuss with the expert" starts the discussion from your notes.
 - **7-day plan**: basics → business models → key players → news → risks → target-company deep-dive → your point of view.
 - **Notebook & insight profile**: searchable entries by area/company, recurring themes, company dossiers, readiness score, and "Organise my thinking" (AI summarises only your own words into a point of view and interview talking points).
 
