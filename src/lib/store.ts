@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { demoProfile } from "@/data/demo-profile";
@@ -245,7 +245,7 @@ export const useStay = create<StayState>()(
         set((s) => ({
           contacts: {
             ...s.contacts,
-            [id]: { status: "want_to_contact", ...s.contacts[id], ...patch, updatedAt: new Date().toISOString() },
+            [id]: { ...(s.contacts[id] ?? { status: "want_to_contact" as const }), ...patch, updatedAt: new Date().toISOString() },
           },
         })),
       addUserContact: (c) => set((s) => ({ userContacts: [...s.userContacts, { ...c, id: uid("uc"), createdAt: new Date().toISOString() }] })),
@@ -263,11 +263,9 @@ export const useStay = create<StayState>()(
 
 /** True once persisted state has loaded in the browser (avoids SSR/hydration mismatches). */
 export function useHydrated() {
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    const unsub = useStay.persist.onFinishHydration(() => setHydrated(true));
-    if (useStay.persist.hasHydrated()) setHydrated(true);
-    return unsub;
-  }, []);
-  return hydrated;
+  return useSyncExternalStore(
+    (cb) => useStay.persist.onFinishHydration(cb),
+    () => useStay.persist.hasHydrated(),
+    () => false,
+  );
 }
