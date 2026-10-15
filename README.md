@@ -46,10 +46,28 @@ Without a key, every feature falls back to deterministic logic.
 | Roadmap, scoring, priorities | Deterministic engine (`src/lib/engine`) — works offline |
 | Opportunities | 20 fictional demo listings + live Adzuna roles when keys are set (`/api/opportunities/live`, 1h cache; unverified fields shown as "Not verified") + links to live searches (LinkedIn Jobs, Prospects, GOV.UK Find a job) |
 | Campus events | Demo events + user-pasted announcements + live UCL Careers fetch (`/api/events/live`, 6h cache, robots.txt checked; parsed via JSON-LD or Claude) |
+| Industry insights | Live Google News RSS headlines + Apple Podcasts search (`/api/insights/feed`, 1h cache) + STAY-written primers; falls back to search links if offline |
+| Interview prep | Question bank, cases and rubric scoring work offline; AI adds tailored questions, richer feedback and a live case interviewer |
 | Coffee chats | 5 real LinkedIn people-search URLs per profile (+ UCL's LinkedIn alumni tool) + user-added contacts. No invented people, nothing auto-sent |
 | Visa | General rules incl. Graduate route change (18 months for applications from 1 Jan 2027; PhD 3 years), links to GOV.UK |
 
 Needs access to integrate later: Adzuna keys (code ready), other job APIs (e.g. Reed), Students' Union UCL feed, society Instagram (Graph API with each account's authorisation), LinkedIn (no people-search API), Supabase auth.
+
+## Industry Insights (`/insights`)
+
+- Follow up to 4 **areas** (AI, tech, data, consulting, investment banking, markets & fintech, healthcare, biotech, marketing, energy, public sector) and up to 4 **target companies**.
+- **Today**: live news (Google News RSS, UK edition, last 7 days — headlines and links only) and podcasts (Apple iTunes Search API), plus a STAY-written primer and 3 daily questions.
+- **Reflect**: answer a question → saved to your notebook → coach feedback (AI, or rule-based checks: a view, evidence, the "so what", depth) → one follow-up question to go deeper.
+- **7-day plan**: basics → business models → key players → news → risks → target-company deep-dive → your point of view.
+- **Notebook & insight profile**: searchable entries by area/company, recurring themes, company dossiers, readiness score, and "Organise my thinking" (AI summarises only your own words into a point of view and interview talking points).
+
+## Interview Prep (`/interview`)
+
+- **Question bank**: behavioural (by competency), motivation, technical for your field, and company questions — including one built on a real recent headline about the company. "Tailor" generates likely questions from a pasted job description (AI).
+- **Mock interview**: mixed / behavioural / company / CV / technical; timer, interviewer voice (speech synthesis), answer by voice (Chrome/Edge speech recognition) or typing; scored feedback (structure, specificity, impact, relevance, concision) + a follow-up probe; summary saved to History.
+- **Your CV**: questions generated only from your own profile/CV text.
+- **Case practice** (consulting): 3 fictional cases — clarify → structure → analysis with exhibits → recommendation, with an interviewer chat (AI, or scripted) and coverage of what a strong answer includes.
+- **Story bank**: STAR stories with competency coverage and rehearsal.
 
 ## How the pieces are linked
 
@@ -61,6 +79,7 @@ STAY reacts to what you do, using deterministic rules (`src/lib/engine/roadmap.t
 - **Tick a skill task** (e.g. "Build PyTorch") → the skill is added to your profile, so gaps and opportunity scores update; un-ticking removes it.
 - **Finish CV / project / skill tasks** → next-step tasks (CV review, project showcase, prove-it-in-public).
 - **Change goals or preferences** → roadmap rebuilt, opportunities and events re-ranked; completed tasks and user-edited dates are always kept.
+- **Insights & interviews** → 5 reflections auto-tick "Build commercial awareness"; 3 mock interviews auto-tick "Run 3 mock interviews"; saving/applying to a role adds "Practise a company mock interview"; Insights company dossiers and Opportunity cards link straight into Interview Prep for that company.
 - **Scoring** also uses role types, company types, minimum salary and your priority sliders (weights are shown in "Why X%?").
 
 ## Project structure

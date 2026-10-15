@@ -158,6 +158,10 @@ export interface Activity {
   appliedOpps: Record<string, string>;
   contacts: Record<string, { status: ContactStatus }>;
   completedTemplateIds: string[];
+  /** Industry reflections saved */
+  insightEntries?: number;
+  /** Completed mock interviews */
+  mockInterviews?: number;
 }
 
 export type EventCategory =
@@ -281,4 +285,119 @@ export interface RoadmapPhase {
   start: string;
   end: string;
   color: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Industry insights                                                   */
+/* ------------------------------------------------------------------ */
+
+export type InsightAreaId =
+  | "ai"
+  | "tech"
+  | "data"
+  | "consulting"
+  | "investment-banking"
+  | "finance-markets"
+  | "healthcare"
+  | "biotech"
+  | "marketing"
+  | "energy"
+  | "public-sector";
+
+export type FeedItemKind = "news" | "podcast" | "primer";
+
+/** Something to read/listen to. Live items always carry a real URL and source; primers are STAY-written explainers. */
+export interface FeedItem {
+  id: string;
+  kind: FeedItemKind;
+  title: string;
+  source: string;
+  url?: string;
+  publishedAt?: string;
+  area?: InsightAreaId;
+  company?: string;
+  summary?: string; // primers only (our own text)
+  isLive: boolean;
+}
+
+export interface InsightEntry {
+  id: string;
+  date: string; // ISO date
+  area?: InsightAreaId;
+  company?: string;
+  question: string;
+  answer: string;
+  item?: { title: string; url?: string; source: string; kind: FeedItemKind };
+  tags: string[];
+  feedback?: string;
+  followUp?: string;
+  parentId?: string;
+  createdAt: string;
+}
+
+export interface InsightPrefs {
+  areas: InsightAreaId[];
+  companies: string[];
+  planStart?: string; // ISO date the 7-day plan started
+  planDone: number[]; // day indexes completed
+}
+
+/* ------------------------------------------------------------------ */
+/* Interview prep                                                      */
+/* ------------------------------------------------------------------ */
+
+export type QuestionKind = "behavioural" | "motivation" | "technical" | "company" | "cv" | "case" | "commercial";
+
+export interface InterviewQuestion {
+  id: string;
+  kind: QuestionKind;
+  text: string;
+  competency?: string;
+  tests?: string; // what the interviewer is assessing
+  tips?: string[];
+  modelPoints?: string[]; // for technical questions: points a strong answer covers
+  source: "bank" | "cv" | "company" | "ai";
+}
+
+export interface AnswerScores {
+  structure: number; // 1-5
+  specificity: number;
+  impact: number;
+  relevance: number;
+  concision: number;
+}
+
+export interface AnswerFeedback {
+  scores: AnswerScores;
+  strengths: string[];
+  improvements: string[];
+  followUp?: string;
+  source: "ai" | "rules";
+}
+
+export interface MockTurn {
+  question: InterviewQuestion;
+  answer: string;
+  seconds: number;
+  feedback?: AnswerFeedback;
+}
+
+export interface MockSession {
+  id: string;
+  type: "behavioural" | "mixed" | "company" | "cv" | "technical" | "case";
+  company?: string;
+  turns: MockTurn[];
+  startedAt: string;
+  completedAt?: string;
+}
+
+export interface StoryEntry {
+  id: string;
+  title: string;
+  competencies: string[];
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  updatedAt: string;
 }

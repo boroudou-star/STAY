@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Compass, Coffee, GraduationCap, LayoutDashboard, Map, Menu, ShieldCheck, Sparkles, User, X } from "lucide-react";
+import { CalendarDays, Compass, Coffee, GraduationCap, LayoutDashboard, Map, Menu, Mic, Newspaper, ShieldCheck, Sparkles, User, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -16,6 +16,8 @@ export const NAV = [
   { href: "/opportunities", label: "Opportunities", icon: Compass },
   { href: "/events", label: "Campus Events", icon: CalendarDays },
   { href: "/coffee-chats", label: "Coffee Chats", icon: Coffee },
+  { href: "/insights", label: "Industry Insights", icon: Newspaper },
+  { href: "/interview", label: "Interview Prep", icon: Mic },
   { href: "/skills", label: "Skills", icon: Sparkles },
   { href: "/visa", label: "Visa & Work", icon: ShieldCheck },
   { href: "/profile", label: "Profile", icon: User },

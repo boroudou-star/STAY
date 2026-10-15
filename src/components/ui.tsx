@@ -127,7 +127,7 @@ export function Chip({ active, onClick, children, className }: { active?: boolea
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium transition-all",
+        "inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[13px] font-medium transition-all",
         active ? "border-ink bg-ink text-white shadow-[var(--shadow-soft)]" : "border-line bg-card text-ink-2 hover:border-ink/30 hover:text-ink",
         className,
       )}
@@ -272,7 +272,7 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
 
 export function Tabs<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode }[] }) {
   return (
-    <div className="inline-flex rounded-2xl border border-line bg-paper-2 p-1" role="tablist">
+    <div className="scrollbar-none inline-flex max-w-full overflow-x-auto rounded-2xl border border-line bg-paper-2 p-1" role="tablist">
       {items.map((it) => (
         <button
           key={it.value}

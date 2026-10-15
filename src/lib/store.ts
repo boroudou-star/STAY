@@ -8,7 +8,7 @@ import { activityStats, AUTO_COMPLETE_RULES } from "@/lib/engine/roadmap";
 import { canonicalSkill } from "@/data/careers";
 import { buildRoadmap } from "@/lib/services/catalog";
 import { stayStorage, STORAGE_KEY } from "@/lib/persistence";
-import type { Activity, CareerEvent, ContactTracking, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
+import type { Activity, CareerEvent, ContactTracking, InsightEntry, InsightPrefs, MockSession, StoryEntry, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
 import { addDays, daysBetween, todayISO, uid } from "@/lib/utils";
 
 export interface ChangeSummary {
@@ -49,6 +49,24 @@ interface StayState {
   liveOpps: Opportunity[];
   /** Skills added to the profile by completing a skill task (taskId → skill), so un-ticking can undo it */
   skillsFromTasks: Record<string, string>;
+  /** Industry insights */
+  insightPrefs: InsightPrefs | null;
+  journal: InsightEntry[];
+  /** Interview prep */
+  mockSessions: MockSession[];
+  stories: StoryEntry[];
+  /** Company to pre-fill in Interview Prep (set from Insights / Opportunities) */
+  interviewCompany: string;
+  setInterviewCompany: (c: string) => void;
+
+  setInsightPrefs: (patch: Partial<InsightPrefs>) => void;
+  addInsightEntry: (e: Omit<InsightEntry, "id" | "createdAt">) => { id: string; effects: Effects };
+  updateInsightEntry: (id: string, patch: Partial<InsightEntry>) => void;
+  deleteInsightEntry: (id: string) => void;
+  saveMockSession: (s: MockSession) => Effects;
+  deleteMockSession: (id: string) => void;
+  upsertStory: (s: StoryEntry) => void;
+  deleteStory: (id: string) => void;
 
   setProfile: (p: UserProfile, reason?: string) => ChangeSummary;
   loadDemo: () => void;
@@ -93,9 +111,14 @@ const initial = {
   lastChange: null,
   liveOpps: [] as Opportunity[],
   skillsFromTasks: {} as Record<string, string>,
+  insightPrefs: null as InsightPrefs | null,
+  journal: [] as InsightEntry[],
+  mockSessions: [] as MockSession[],
+  stories: [] as StoryEntry[],
+  interviewCompany: "",
 };
 
-type Snapshot = Pick<StayState, "savedOpps" | "appliedOpps" | "contacts" | "tasks">;
+type Snapshot = Pick<StayState, "savedOpps" | "appliedOpps" | "contacts" | "tasks"> & Partial<Pick<StayState, "journal" | "mockSessions">>;
 
 export function activityOf(s: Snapshot): Activity {
   return {
@@ -103,6 +126,8 @@ export function activityOf(s: Snapshot): Activity {
     appliedOpps: s.appliedOpps,
     contacts: s.contacts,
     completedTemplateIds: s.tasks.filter((t) => t.status === "completed" && t.templateId).map((t) => t.templateId!),
+    insightEntries: s.journal?.filter((e) => !e.parentId).length ?? 0,
+    mockInterviews: s.mockSessions?.filter((m) => m.completedAt).length ?? 0,
   };
 }
 
@@ -332,6 +357,24 @@ export const useStay = create<StayState>()(
       removeUserContact: (id) => set((s) => ({ userContacts: s.userContacts.filter((c) => c.id !== id) })),
 
       setInsight: (i) => set({ insight: i }),
+
+      setInterviewCompany: (c) => set({ interviewCompany: c }),
+      setInsightPrefs: (patch) =>
+        set((s) => ({ insightPrefs: { areas: [], companies: [], planDone: [], ...(s.insightPrefs ?? {}), ...patch } })),
+      addInsightEntry: (e) => {
+        const id = uid("ins");
+        set((s) => ({ journal: [{ ...e, id, createdAt: new Date().toISOString() }, ...s.journal] }));
+        return { id, effects: autoSync(get, set) };
+      },
+      updateInsightEntry: (id, patch) => set((s) => ({ journal: s.journal.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
+      deleteInsightEntry: (id) => set((s) => ({ journal: s.journal.filter((e) => e.id !== id && e.parentId !== id) })),
+      saveMockSession: (m) => {
+        set((s) => ({ mockSessions: [m, ...s.mockSessions.filter((x) => x.id !== m.id)] }));
+        return m.completedAt ? autoSync(get, set) : NO_EFFECTS;
+      },
+      deleteMockSession: (id) => set((s) => ({ mockSessions: s.mockSessions.filter((m) => m.id !== id) })),
+      upsertStory: (st) => set((s) => ({ stories: [st, ...s.stories.filter((x) => x.id !== st.id)] })),
+      deleteStory: (id) => set((s) => ({ stories: s.stories.filter((x) => x.id !== id) })),
     }),
     {
       name: STORAGE_KEY,

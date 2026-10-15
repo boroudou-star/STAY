@@ -156,6 +156,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
   const toggleApplied = useStay((st) => st.toggleApplied);
   const addOpportunityToRoadmap = useStay((st) => st.addOpportunityToRoadmap);
   const inRoadmap = useStay((st) => st.tasks.some((t) => t.sourceOpportunityId === o.id));
+  const setInterviewCompany = useStay((st) => st.setInterviewCompany);
   const days = o.deadline ? daysBetween(new Date().toISOString().slice(0, 10), o.deadline) : null;
   const needsSponsor = useStay((st) => st.profile && !st.profile.visa.skipped && st.profile.visa.needsSponsorship === "yes");
 
@@ -268,6 +269,9 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
         <Button size="sm" variant="ghost" onClick={onDetails}>
           Why {s.score}%?
         </Button>
+        <Link href="/interview" onClick={() => setInterviewCompany(o.company)} className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[13px] font-medium text-ink-2 hover:bg-paper-2 hover:text-ink">
+          Prep interview
+        </Link>
         {o.sourceUrl ? (
           <LinkButton href={o.sourceUrl} external size="sm" variant="ghost">
             View listing <ExternalLink size={12} />

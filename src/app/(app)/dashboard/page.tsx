@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarDays, Coffee, Compass, Flame, Map, RefreshCw, ShieldCheck, Sparkles, Target, Trophy, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Coffee, Compass, Flame, Map, Mic, Newspaper, RefreshCw, ShieldCheck, Sparkles, Target, Trophy, X } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { TRACK_MAP } from "@/data/careers";
@@ -20,6 +20,8 @@ export default function Dashboard() {
   const contacts = useStay((s) => s.contacts);
   const savedOpps = useStay((s) => s.savedOpps);
   const lastChange = useStay((s) => s.lastChange);
+  const journalCount = useStay((s) => s.journal.length);
+  const mockCount = useStay((s) => s.mockSessions.filter((m) => m.completedAt).length);
   const regenerate = useStay((s) => s.regenerate);
   const { profile: p, horizon, phases, tasks } = d;
   const goal = TRACK_MAP[p.careerGoals[0] ?? "exploring"];
@@ -213,12 +215,14 @@ export default function Dashboard() {
       </Card>
 
       {/* Quick access */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           { href: "/roadmap", icon: Map, label: "My Roadmap", stat: `${tasks.length - doneCount} open`, tone: "bg-violet-soft text-violet" },
           { href: "/opportunities", icon: Compass, label: "Opportunities", stat: `Top match ${d.opportunities[0]?.score ?? 0}%`, tone: "bg-blue-soft text-blue" },
           { href: "/events", icon: CalendarDays, label: "Campus Events", stat: `${d.events.filter((e) => e.score >= 50).length} for you`, tone: "bg-teal-soft text-teal" },
           { href: "/coffee-chats", icon: Coffee, label: "Coffee Chats", stat: `${contacted}/5 reached out`, tone: "bg-sun-soft text-[#c2502f]" },
+          { href: "/insights", icon: Newspaper, label: "Industry Insights", stat: `${journalCount} reflections`, tone: "bg-blue-soft text-blue" },
+          { href: "/interview", icon: Mic, label: "Interview Prep", stat: `${mockCount} mock interviews`, tone: "bg-violet-soft text-violet" },
           { href: "/skills", icon: Sparkles, label: "Skills", stat: `${Math.round(d.skills.coverage * 100)}% core covered`, tone: "bg-lime/50 text-ink" },
           { href: "/roadmap#progress", icon: Trophy, label: "My Progress", stat: `${d.progress}% complete`, tone: "bg-paper-2 text-ink" },
         ].map((q) => (

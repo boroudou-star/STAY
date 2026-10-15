@@ -57,8 +57,8 @@ export default function RoadmapPage() {
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <Card className="p-5 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <Card className="min-w-0 p-5 lg:col-span-2">
           <TubeMap phases={phases} tasks={tasks} start={horizon.start} end={horizon.end} anchorLabel={horizon.anchorLabel} onSelectPhase={setPhase} activePhase={phase} />
           <p className="-mt-2 text-[12px] text-muted">Tip: click a line to filter tasks by phase.</p>
         </Card>

@@ -32,6 +32,8 @@ export function activityStats(a: Activity) {
     reachedOut: statuses.filter((s) => REACHED_OUT.includes(s)).length,
     chatsDone: statuses.filter((s) => s === "completed").length,
     replied: statuses.filter((s) => s === "replied" || s === "chat_scheduled" || s === "completed").length,
+    insights: a.insightEntries ?? 0,
+    mocks: a.mockInterviews ?? 0,
   };
 }
 
@@ -44,6 +46,8 @@ export const AUTO_COMPLETE_RULES: { templateId: string; met: (st: ReturnType<typ
   { templateId: "coffee-three-done", met: (st) => st.chatsDone >= 3, because: "you've completed 3 coffee chats" },
   { templateId: "grad-apply-5", met: (st) => st.applied >= 5, because: "you've marked 5 roles as applied" },
   { templateId: "grad-apply-10", met: (st) => st.applied >= 10, because: "you've marked 10 roles as applied" },
+  { templateId: "interviews-prep", met: (st) => st.mocks >= 3, because: "you've completed 3 mock interviews in STAY" },
+  { templateId: "insight-habit", met: (st) => st.insights >= 5, because: "you've saved 5 industry reflections" },
 ];
 
 export interface Horizon {
@@ -318,7 +322,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       drafts.push({
         templateId: "interviews-prep",
         title: "Run 3 mock interviews (1 technical, 2 behavioural)",
-        description: "Use your careers service, a society or a friend. Prepare STAR stories from your projects.",
+        description: "Use STAY's Interview Prep (mock interviews with feedback), your careers service or a friend. Prepare STAR stories from your projects.",
         deadline: at(60),
         priority: "high",
         category: "interviews",
@@ -439,7 +443,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     drafts.push({
       templateId: "interviews-prep",
       title: "Run 3 mock interviews (1 technical, 2 behavioural)",
-      description: "Many universities support recent graduates — check your careers service's alumni offer.",
+      description: "Use STAY's Interview Prep for mock interviews with feedback; many universities also support recent graduates.",
       deadline: at(30),
       priority: "high",
       category: "interviews",
@@ -517,6 +521,17 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     }
   }
 
+  // ---- Commercial awareness habit (everyone) ----
+  drafts.push({
+    templateId: "insight-habit",
+    title: "Build commercial awareness: save 5 reflections in Industry Insights",
+    description: "Answer the daily questions on news and podcasts in your area. Your notebook becomes your 'why this industry' answer.",
+    deadline: at(21),
+    priority: "medium",
+    category: "skills",
+    skill: "Commercial awareness",
+  });
+
   // ---- Dynamic: react to what the user has done ----
   const act = ctx.activity ?? EMPTY_ACTIVITY;
   const st = activityStats(act);
@@ -548,6 +563,18 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       description: "Online assessments often arrive within 1–2 weeks of applying. Note each company's stages as you hear back.",
       deadline: at(10),
       priority: "high",
+      category: "interviews",
+    });
+  }
+  // Applied or saved somewhere specific → practise for that company
+  const target = ctx.opportunities.find((s) => act.appliedOpps[s.opportunity.id]) ?? ctx.opportunities.find((s) => act.savedOpps.includes(s.opportunity.id));
+  if (target) {
+    drafts.push({
+      templateId: "mock-company",
+      title: `Practise a company mock interview for ${target.opportunity.company}`,
+      description: "Interview Prep → Mock interview → Company. Includes 'Why this company?' and commercial-awareness questions.",
+      deadline: at(st.applied ? 7 : 14),
+      priority: st.applied ? "high" : "medium",
       category: "interviews",
     });
   }

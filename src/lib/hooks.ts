@@ -124,3 +124,29 @@ export function useLiveOpportunities(track: string, where: string) {
   }, [track, where, setLiveOpps]);
   return state;
 }
+
+/** Live news + podcasts for the user's areas and target companies (server-cached). */
+export function useInsightFeed(areas: string[], companies: string[]) {
+  const key = `${areas.join(",")}|${companies.join(",")}`;
+  const [state, setState] = useState<{ key: string; items: import("@/lib/types").FeedItem[]; status: "loading" | "ok" | "unavailable"; fetchedAt?: string }>({
+    key: "",
+    items: [],
+    status: "loading",
+  });
+  useEffect(() => {
+    let cancelled = false;
+    const q = new URLSearchParams({ areas: areas.join(","), companies: companies.join(",") });
+    fetch(`/api/insights/feed?${q}`)
+      .then((r) => r.json())
+      .then((d: { items?: import("@/lib/types").FeedItem[]; fetchedAt?: string }) => {
+        if (cancelled) return;
+        setState({ key, items: d.items ?? [], status: d.items?.length ? "ok" : "unavailable", fetchedAt: d.fetchedAt });
+      })
+      .catch(() => !cancelled && setState({ key, items: [], status: "unavailable" }));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return state.key === key ? state : { ...state, items: [], status: "loading" as const };
+}
