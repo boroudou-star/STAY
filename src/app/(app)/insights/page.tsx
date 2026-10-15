@@ -1,31 +1,34 @@
 "use client";
 
-import { BookOpen, Building2, CalendarCheck, Copy, ExternalLink, Flame, Headphones, Loader2, Mic, Newspaper, Plus, RotateCcw, Search, Sparkles, Trash2, X } from "lucide-react";
+import { BookOpen, Building2, CalendarCheck, Copy, ExternalLink, Flame, Headphones, Loader2, Mic, Newspaper, NotebookPen, Plus, RotateCcw, Search, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AREA_MAP, INSIGHT_AREAS } from "@/data/insights";
 import { ReflectBox } from "@/components/reflect-box";
 import { Badge, Button, Card, Chip, EmptyState, Input, LiveBadge, Modal, PageHeader, ProgressRing, Tabs } from "@/components/ui";
-import { buildInsightProfile, dailyBrief, effectivePrefs, exportNotebook, newsQuestion, weekPlan } from "@/lib/engine/insights";
+import { buildInsightProfile, dailyBrief, effectivePrefs, exportNotebook, generalSteps, newsQuestion, newsSteps, noteWordCount, podcastSteps, weekPlan } from "@/lib/engine/insights";
+import { useOpenWithNotes } from "@/lib/use-notes";
 import { useInsightFeed } from "@/lib/hooks";
 import { useStay } from "@/lib/store";
-import type { FeedItem, InsightAreaId, InsightEntry } from "@/lib/types";
+import type { FeedItem, InsightAreaId, InsightEntry, ReadingNote, ReflectionStep } from "@/lib/types";
 import { cn, formatDate, relativeDays, todayISO } from "@/lib/utils";
 
-type View = "today" | "plan" | "notebook" | "profile";
+type View = "today" | "plan" | "notebook" | "notes" | "profile";
 
 export default function InsightsPage() {
   const profile = useStay((s) => s.profile)!;
   const storedPrefs = useStay((s) => s.insightPrefs);
   const journal = useStay((s) => s.journal);
+  const readingNotes = useStay((s) => s.readingNotes);
+  const openWithNotes = useOpenWithNotes();
   const prefs = effectivePrefs(profile, storedPrefs);
   const feed = useInsightFeed(prefs.areas, prefs.companies);
   const today = todayISO();
   const brief = useMemo(() => dailyBrief(prefs, feed.items, today), [prefs, feed.items, today]);
   const ip = useMemo(() => buildInsightProfile(journal, today), [journal, today]);
   const [view, setView] = useState<View>("today");
-  const [reflectOn, setReflectOn] = useState<{ question: string; area?: InsightAreaId; company?: string; item?: FeedItem } | null>(null);
+  const [reflectOn, setReflectOn] = useState<{ question: string; steps?: ReflectionStep[]; area?: InsightAreaId; company?: string; item?: FeedItem } | null>(null);
   const answeredToday = new Set(journal.filter((e) => e.date === today).map((e) => e.question));
 
   return (
@@ -33,7 +36,7 @@ export default function InsightsPage() {
       <PageHeader
         eyebrow="Industry insights"
         title="Your daily industry brief"
-        description="News, podcasts and explainers for the areas and companies you care about — plus questions that turn reading into your own point of view. Everything you write builds your insight profile."
+        description="News, podcasts and explainers for the areas and companies you care about, plus questions that turn reading into your own point of view. Everything you write builds your insight profile."
         actions={
           <div className="flex items-center gap-2 rounded-2xl border border-line bg-card px-3 py-2 text-[13px] shadow-[var(--shadow-soft)]">
             <Flame size={16} className={cn(ip.streakDays ? "text-sun" : "text-muted")} />
@@ -52,6 +55,7 @@ export default function InsightsPage() {
             { value: "today", label: "Today" },
             { value: "plan", label: "7-day plan" },
             { value: "notebook", label: `Notebook (${journal.length})` },
+            { value: "notes", label: `Reading notes (${readingNotes.length})` },
             { value: "profile", label: "Insight profile" },
           ]}
         />
@@ -74,11 +78,11 @@ export default function InsightsPage() {
                     </div>
                     <p className="mb-3 text-[15px] font-medium leading-snug">{q.text}</p>
                     {q.item?.url && (
-                      <a href={q.item.url} target="_blank" rel="noopener noreferrer" className="mb-3 inline-flex items-center gap-1 text-[12.5px] font-medium text-blue hover:underline">
-                        Read the story first ({q.item.source}) <ExternalLink size={11} />
-                      </a>
+                      <button onClick={() => openWithNotes(q.item!)} className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-blue/20 bg-blue-soft px-3 py-1 text-[12.5px] font-semibold text-blue hover:border-blue/40">
+                        <NotebookPen size={13} /> Read the story and take notes ({q.item.source})
+                      </button>
                     )}
-                    <ReflectBox key={q.id} question={q.text} area={q.area} company={q.company} item={q.item} compact />
+                    <ReflectBox key={q.id} question={q.text} steps={q.steps} area={q.area} company={q.company} item={q.item} compact />
                   </div>
                 ))}
               </div>
@@ -102,18 +106,27 @@ export default function InsightsPage() {
                   {brief.news.map((n) => (
                     <div key={n.id} className="flex items-start justify-between gap-3 py-3">
                       <div className="min-w-0">
-                        <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-[14.5px] font-medium leading-snug hover:underline">
+                        <button onClick={() => openWithNotes(n)} className="text-left text-[14.5px] font-medium leading-snug hover:underline">
                           {n.title}
-                        </a>
+                        </button>
                         <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[12px] text-muted">
                           <span>{n.source}</span>
                           {n.publishedAt && <span>· {relativeDays(n.publishedAt.slice(0, 10))}</span>}
                           {n.company ? <Badge tone="blue">{n.company}</Badge> : n.area ? <Badge>{AREA_MAP[n.area].label}</Badge> : null}
                         </div>
                       </div>
-                      <Button size="sm" variant="secondary" onClick={() => setReflectOn({ question: newsQuestion(n, prefs.companies), area: n.area, company: n.company, item: n })}>
-                        Reflect
-                      </Button>
+                      <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+                        <Button size="sm" onClick={() => openWithNotes(n)}>
+                          <NotebookPen size={13} /> Read & note
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setReflectOn({ question: newsQuestion(n, prefs.companies), steps: newsSteps(n.company ?? prefs.companies.find((c) => n.title.toLowerCase().includes(c.toLowerCase()))), area: n.area, company: n.company, item: n })}
+                        >
+                          Reflect
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -139,8 +152,16 @@ export default function InsightsPage() {
               </div>
               <h3 className="font-display text-lg font-semibold leading-snug">{brief.primer.primer.title}</h3>
               <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">{brief.primer.primer.body}</p>
-              <p className="mt-2 text-[11px] text-muted">STAY explainer — general background, not news.</p>
-              <Button size="sm" variant="secondary" className="mt-3" onClick={() => setReflectOn({ question: brief.primer.primer.questions[1] ?? brief.primer.primer.questions[0], area: brief.primer.area })}>
+              <p className="mt-2 text-[11px] text-muted">STAY explainer: general background, not news.</p>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="mt-3"
+                onClick={() => {
+                  const q = brief.primer.primer.questions[1] ?? brief.primer.primer.questions[0];
+                  setReflectOn({ question: q, steps: generalSteps(q), area: brief.primer.area });
+                }}
+              >
                 Reflect on this
               </Button>
             </Card>
@@ -155,16 +176,24 @@ export default function InsightsPage() {
                 <div className="space-y-2">
                   {brief.podcasts.map((p) => (
                     <div key={p.id} className="rounded-2xl bg-paper p-3">
-                      <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[14px] font-medium hover:underline">
+                      <button onClick={() => openWithNotes(p)} className="text-left text-[14px] font-medium hover:underline">
                         {p.title}
-                      </a>
+                      </button>
                       <div className="text-[12px] text-muted">
                         {p.source}
                         {p.area ? ` · ${AREA_MAP[p.area].label}` : ""}
                       </div>
-                      <button className="mt-1 text-[12px] font-semibold text-blue hover:underline" onClick={() => setReflectOn({ question: `After listening to an episode of "${p.title}": what's one idea you agreed or disagreed with, and why?`, area: p.area, item: p })}>
-                        Reflect after listening →
-                      </button>
+                      <div className="mt-1.5 flex flex-wrap gap-3">
+                        <button className="inline-flex items-center gap-1 text-[12px] font-semibold text-blue hover:underline" onClick={() => openWithNotes(p)}>
+                          <NotebookPen size={12} /> Listen & take notes
+                        </button>
+                        <button
+                          className="text-[12px] font-semibold text-ink-2 hover:underline"
+                          onClick={() => setReflectOn({ question: `After listening to an episode of "${p.title}": what's one idea you agreed or disagreed with, and why?`, steps: podcastSteps(), area: p.area, item: p })}
+                        >
+                          Reflect after listening
+                        </button>
+                      </div>
                     </div>
                   ))}
                   <p className="text-[11px] text-muted">Shows found via Apple Podcasts search.</p>
@@ -183,7 +212,7 @@ export default function InsightsPage() {
             <Card className="bg-ink p-5 text-white">
               <div className="text-[12px] font-semibold uppercase tracking-widest text-lime">Why this matters</div>
               <p className="mt-2 text-[13.5px] leading-relaxed text-white/80">
-                &ldquo;Why this industry?&rdquo; and &ldquo;Tell me about something you&apos;ve read recently&rdquo; come up in many graduate interviews. Your notebook becomes your answer bank — and feeds Interview Prep.
+                &ldquo;Why this industry?&rdquo; and &ldquo;Tell me about something you&apos;ve read recently&rdquo; come up in many graduate interviews. Your notebook becomes your answer bank, and feeds Interview Prep.
               </p>
               <Link href="/interview" className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-lime hover:underline">
                 <Mic size={14} /> Practise with it
@@ -195,6 +224,7 @@ export default function InsightsPage() {
 
       {view === "plan" && <PlanView onAnswer={(question, area) => setReflectOn({ question, area })} />}
       {view === "notebook" && <NotebookView entries={journal} />}
+      {view === "notes" && <ReadingNotesView notes={readingNotes} />}
       {view === "profile" && <ProfileView entries={journal} />}
 
       <Modal open={Boolean(reflectOn)} onClose={() => setReflectOn(null)} title="Reflect" wide>
@@ -202,11 +232,18 @@ export default function InsightsPage() {
           <>
             <p className="mb-3 text-[15px] font-medium leading-snug">{reflectOn.question}</p>
             {reflectOn.item?.url && (
-              <a href={reflectOn.item.url} target="_blank" rel="noopener noreferrer" className="mb-3 inline-flex items-center gap-1 text-[12.5px] font-medium text-blue hover:underline">
-                Open source ({reflectOn.item.source}) <ExternalLink size={11} />
-              </a>
+              <button
+                onClick={() => {
+                  const it = reflectOn.item!;
+                  setReflectOn(null);
+                  openWithNotes(it);
+                }}
+                className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-blue/20 bg-blue-soft px-3 py-1 text-[12.5px] font-semibold text-blue"
+              >
+                <NotebookPen size={13} /> Read it first and take notes
+              </button>
             )}
-            <ReflectBox question={reflectOn.question} area={reflectOn.area} company={reflectOn.company} item={reflectOn.item} />
+            <ReflectBox question={reflectOn.question} steps={reflectOn.steps} area={reflectOn.area} company={reflectOn.company} item={reflectOn.item} />
           </>
         )}
       </Modal>
@@ -341,7 +378,7 @@ function NotebookView({ entries }: { entries: InsightEntry[] }) {
       (!q.trim() || `${e.question} ${e.answer} ${childrenOf(e.id).map((c) => c.answer).join(" ")}`.toLowerCase().includes(q.toLowerCase())),
   );
 
-  if (!entries.length) return <EmptyState icon={<BookOpen />} title="Your notebook is empty" body="Answer a question on the Today tab — every reflection is saved here, organised by area and company." />;
+  if (!entries.length) return <EmptyState icon={<BookOpen />} title="Your notebook is empty" body="Answer a question on the Today tab. Every reflection is saved here, organised by area and company." />;
 
   return (
     <div>
@@ -388,7 +425,18 @@ function NotebookView({ entries }: { entries: InsightEntry[] }) {
               </button>
             </div>
             <p className="mt-2 text-[14px] font-semibold leading-snug">{e.question}</p>
-            <p className="mt-1.5 whitespace-pre-wrap text-[14px] leading-relaxed text-ink-2">{e.answer}</p>
+            {e.steps?.length ? (
+              <div className="mt-2 space-y-1.5">
+                {e.steps.map((st) => (
+                  <div key={st.prompt} className="text-[13.5px] leading-relaxed">
+                    <span className="text-muted">{st.prompt}</span>
+                    <span className="block text-ink">{st.answer}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-1.5 whitespace-pre-wrap text-[14px] leading-relaxed text-ink-2">{e.answer}</p>
+            )}
             {e.item?.url && (
               <a href={e.item.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[12px] text-blue hover:underline">
                 {e.item.source}: {e.item.title.slice(0, 80)}
@@ -446,9 +494,9 @@ function ProfileView({ entries }: { entries: InsightEntry[] }) {
         themes: ip.themes.slice(0, 5).map((t) => `${t.term} (${t.count} mentions)`),
         gaps: [
           ...prefs.areas.filter((a) => !ip.byArea.some((b) => b.area === a)).map((a) => `You follow ${AREA_MAP[a].label} but haven't reflected on it yet`),
-          ...prefs.companies.filter((c) => !ip.byCompany.some((b) => b.company === c)).map((c) => `No notes on ${c} yet — try its daily question`),
+          ...prefs.companies.filter((c) => !ip.byCompany.some((b) => b.company === c)).map((c) => `No notes on ${c} yet. Try its daily question`),
         ].slice(0, 3),
-        talkingPoints: ip.strongest.map((e) => `${e.question} — ${e.answer.slice(0, 180)}${e.answer.length > 180 ? "…" : ""}`),
+        talkingPoints: ip.strongest.map((e) => `${e.question} ${e.answer.slice(0, 180)}${e.answer.length > 180 ? "…" : ""}`),
         source: "rules",
       };
     }
@@ -538,7 +586,7 @@ function ProfileView({ entries }: { entries: InsightEntry[] }) {
               <p className="text-[11px] text-muted">{syn.source === "ai" ? "Summarised by AI from your own entries only." : "Compiled from your own entries."}</p>
             </div>
           ) : (
-            <p className="mt-3 text-[14px] text-ink-2">Turn your notes into a short point of view, recurring themes and interview talking points — using only what you&apos;ve written.</p>
+            <p className="mt-3 text-[14px] text-ink-2">Turn your notes into a short point of view, recurring themes and interview talking points, using only what you&apos;ve written.</p>
           )}
         </Card>
 
@@ -592,6 +640,50 @@ function ProfileView({ entries }: { entries: InsightEntry[] }) {
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReadingNotesView({ notes }: { notes: ReadingNote[] }) {
+  const deleteReadingNote = useStay((s) => s.deleteReadingNote);
+  if (!notes.length)
+    return (
+      <EmptyState
+        icon={<NotebookPen />}
+        title="No reading notes yet"
+        body="Click any news story or podcast in your brief. It opens in a new tab, and a notes page opens here so you can write as you read."
+      />
+    );
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {notes.map((n) => {
+        const preview = Object.values(n.sections).find((t) => t?.trim());
+        return (
+          <Card key={n.id} interactive className="flex flex-col p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
+                {n.item.kind === "podcast" ? <Headphones size={12} /> : <Newspaper size={12} />}
+                <span>{n.item.source}</span>
+                <span>· {formatDate(n.updatedAt.slice(0, 10))}</span>
+                {n.reflectedEntryId && <Badge tone="teal">Reflected</Badge>}
+              </div>
+              <button onClick={() => deleteReadingNote(n.id)} className="rounded-lg p-1.5 text-muted hover:bg-red-50 hover:text-red-600" aria-label="Delete notes">
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <Link href={`/insights/notes/${n.id}`} className="mt-1.5 font-display text-[16px] font-semibold leading-snug hover:underline">
+              {n.item.title}
+            </Link>
+            <p className="mt-1 line-clamp-2 text-[13px] text-ink-2">{preview ?? "No notes yet."}</p>
+            <div className="mt-auto flex items-center justify-between pt-3 text-[12px] text-muted">
+              <span>{noteWordCount(n.sections)} words</span>
+              <Link href={`/insights/notes/${n.id}`} className="font-semibold text-blue hover:underline">
+                Open notes
+              </Link>
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }

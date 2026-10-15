@@ -2,7 +2,7 @@
 
 import { BookMarked, Briefcase, Building2, ChevronDown, ChevronRight, FileText, History, Loader2, MessageSquare, Mic, Play, Plus, Sparkles, Trash2, Trophy, Volume2 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CASES, COMPETENCIES, type CaseStudy } from "@/data/interview";
 import { TRACK_MAP } from "@/data/careers";
@@ -15,6 +15,9 @@ import { useInsightFeed } from "@/lib/hooks";
 import { useStay } from "@/lib/store";
 import type { CareerTrack, InterviewQuestion, MockSession, StoryEntry } from "@/lib/types";
 import { cn, formatDate, uid } from "@/lib/utils";
+
+/** The field being prepared for, so feedback is scored against that field's hiring bar. */
+const TrackCtx = createContext<string>("");
 
 type View = "bank" | "mock" | "cv" | "case" | "technical" | "stories" | "history";
 
@@ -47,7 +50,7 @@ export default function InterviewPage() {
   const suggestions = Array.from(
     new Set([
       ...(insightPrefs?.companies ?? []),
-      ...tasks.filter((t) => t.sourceOpportunityId && t.title.includes(" — ")).map((t) => t.title.split(" — ").pop()!.trim()),
+      ...tasks.filter((t) => t.sourceOpportunityId && / (at|\u2014) /.test(t.title)).map((t) => t.title.split(/ at | \u2014 /).pop()!.trim()),
     ]),
   ).slice(0, 5);
 
@@ -106,6 +109,7 @@ export default function InterviewPage() {
         />
       </div>
 
+      <TrackCtx.Provider value={track}>
       {view === "bank" && <BankView set={set} company={company} role={role} track={track} />}
       {view === "mock" && <MockView set={set} company={company} role={role} />}
       {view === "cv" && <CvView questions={set.cv} role={role} onMock={() => setView("mock")} />}
@@ -113,6 +117,7 @@ export default function InterviewPage() {
       {view === "technical" && <QuestionList questions={set.technical} role={role} company={company} empty="No technical bank for this area yet." />}
       {view === "stories" && <StoriesView />}
       {view === "history" && <HistoryView />}
+      </TrackCtx.Provider>
     </div>
   );
 }
@@ -120,6 +125,7 @@ export default function InterviewPage() {
 /* ------------------------------------------------------------------ */
 
 function QuestionCard({ q, role, company, onAddStory }: { q: InterviewQuestion; role: string; company?: string; onAddStory?: (competency?: string) => void }) {
+  const track = useContext(TrackCtx);
   const [open, setOpen] = useState(false);
   const [practising, setPractising] = useState(false);
   return (
@@ -168,7 +174,7 @@ function QuestionCard({ q, role, company, onAddStory }: { q: InterviewQuestion; 
             <Volume2 size={16} />
           </button>
         </p>
-        <PracticeQuestion question={q} ctx={{ role, company }} />
+        <PracticeQuestion question={q} ctx={{ role, company, track }} />
       </Modal>
     </Card>
   );
@@ -207,7 +213,7 @@ function BankView({ set, company, role, track }: { set: ReturnType<typeof questi
         setAiQs(d.questions.map((q, i) => ({ ...q, id: `ai-${i}-${Date.now()}`, source: "ai" })));
         setSection("company");
         toast.success(`${d.questions.length} tailored questions added`);
-      } else toast.info("AI isn't configured — the company questions below are built from proven templates.");
+      } else toast.info("AI isn't configured, the company questions below are built from proven templates.");
     } catch {
       toast.error("Couldn't reach AI");
     }
@@ -239,7 +245,7 @@ function BankView({ set, company, role, track }: { set: ReturnType<typeof questi
       </div>
       {section === "company" && (
         <p className="mb-3 text-[12.5px] text-muted">
-          Likely question types for {company} based on the role — not leaked or confirmed questions. Paste the job description to tailor them further.
+          Likely question types for {company} based on the role, not leaked or confirmed questions. Paste the job description to tailor them further.
         </p>
       )}
       <QuestionList questions={list} role={role} company={company} onAddStory={(c) => setStoryFor(c)} />
@@ -269,6 +275,7 @@ const MOCK_TYPES: { value: MockSession["type"]; label: string; desc: string }[] 
 ];
 
 function MockView({ set, company, role }: { set: ReturnType<typeof questionSet>; company: string; role: string }) {
+  const track = useContext(TrackCtx);
   const saveMockSession = useStay((s) => s.saveMockSession);
   const [type, setType] = useState<MockSession["type"]>("mixed");
   const [count, setCount] = useState(4);
@@ -407,7 +414,7 @@ function MockView({ set, company, role }: { set: ReturnType<typeof questionSet>;
           key={turn.question.id}
           question={turn.question}
           voice={voice}
-          ctx={{ role, company }}
+          ctx={{ role, company, track }}
           onFeedback={(answer, fb, seconds) => {
             const turns = session.turns.map((t, i) => (i === current ? { ...t, answer, feedback: fb, seconds } : t));
             const next = { ...session, turns };
@@ -538,7 +545,7 @@ function CaseRunner({ c, onExit }: { c: CaseStudy; onExit: () => void }) {
     } catch {
       /* fallback */
     }
-    if (!reply) reply = stage.info ? `Good question. Here's what we know: ${stage.info}` : "That information isn't available — make a reasonable assumption, state it, and keep going.";
+    if (!reply) reply = stage.info ? `Good question. Here's what we know: ${stage.info}` : "That information isn't available. Make a reasonable assumption, state it, and keep going.";
     setChat((h) => [...h, { role: "interviewer", content: reply! }]);
     setSending(false);
   };
@@ -605,7 +612,7 @@ function CaseRunner({ c, onExit }: { c: CaseStudy; onExit: () => void }) {
         )}
         {!result ? (
           <div className="mt-4">
-            <Textarea className="min-h-36" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer for this stage — structure first, then numbers." />
+            <Textarea className="min-h-36" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer for this stage. Structure first, then numbers." />
             <div className="mt-2 flex justify-end">
               <Button size="sm" onClick={submitStage}>
                 Submit {stage.title.toLowerCase()}
@@ -626,7 +633,7 @@ function CaseRunner({ c, onExit }: { c: CaseStudy; onExit: () => void }) {
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-[11px] text-muted">Coverage is a keyword-based guide — what matters is that your logic is clear and correct.</p>
+              <p className="mt-2 text-[11px] text-muted">Coverage is a keyword-based guide. What matters is that your logic is clear and correct.</p>
             </div>
             {!finished ? (
               <div className="flex justify-end">
@@ -634,7 +641,7 @@ function CaseRunner({ c, onExit }: { c: CaseStudy; onExit: () => void }) {
               </div>
             ) : (
               <div className="rounded-2xl bg-ink p-4 text-white">
-                <div className="font-display text-lg font-semibold">Case complete — {avg}% average coverage</div>
+                <div className="font-display text-lg font-semibold">Case complete: {avg}% average coverage</div>
                 <p className="text-[13px] text-white/70">Try it again in a few days without looking, or attempt another case.</p>
               </div>
             )}
@@ -733,6 +740,7 @@ function StoryEditor({ initial, onClose }: { initial: Partial<StoryEntry>; onClo
 }
 
 function StoriesView() {
+  const track = useContext(TrackCtx);
   const stories = useStay((s) => s.stories);
   const deleteStory = useStay((s) => s.deleteStory);
   const [editing, setEditing] = useState<Partial<StoryEntry> | null>(null);
@@ -744,7 +752,7 @@ function StoriesView() {
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h2 className="font-display text-lg font-semibold">Competency coverage</h2>
-            <p className="text-[13px] text-ink-2">Aim for at least one strong story per competency — most behavioural questions map onto these.</p>
+            <p className="text-[13px] text-ink-2">Aim for at least one strong story per competency. Most behavioural questions map onto these.</p>
           </div>
           <Button size="sm" onClick={() => setEditing({})}>
             <Plus size={14} /> New story
@@ -796,6 +804,7 @@ function StoriesView() {
         <Modal open onClose={() => setPractice(null)} title={`Rehearse: ${practice.title}`} wide>
           <p className="mb-2 text-[13px] text-ink-2">Tell this story out loud in under 2 minutes, without reading. Then compare with your notes.</p>
           <PracticeQuestion
+            ctx={{ track }}
             question={{ id: `story-${practice.id}`, kind: "behavioural", competency: practice.competencies[0], text: `Tell me about a time that shows your ${(practice.competencies[0] ?? "strengths").toLowerCase()}.`, source: "bank" }}
           />
         </Modal>

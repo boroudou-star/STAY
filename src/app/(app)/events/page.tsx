@@ -47,7 +47,7 @@ export default function EventsPage() {
       <PageHeader
         eyebrow="Campus events"
         title={`Events at ${uni} that move you forward`}
-        description="Not just 'careers' events — society workshops, hackathons and talks that close your skill gaps or put you in front of employers."
+        description="Not just 'careers' events: society workshops, hackathons and talks that close your skill gaps or put you in front of employers."
         actions={
           <Button onClick={() => setPasteOpen(true)}>
             <ClipboardPaste size={16} /> Add from announcement
@@ -90,7 +90,7 @@ export default function EventsPage() {
       </div>
       {profile.university === "UCL" && live.status === "unavailable" && (
         <p className="-mt-3 mb-5 flex items-center gap-1.5 text-[12px] text-muted">
-          <Radio size={12} /> Live UCL Careers listings couldn&apos;t be loaded right now{live.message ? ` (${live.message})` : ""}. Showing demo events — open the source links above for current listings.
+          <Radio size={12} /> Live UCL Careers listings couldn&apos;t be loaded right now{live.message ? ` (${live.message})` : ""}. Showing demo events. Open the source links above for current listings.
         </p>
       )}
 
@@ -227,7 +227,7 @@ function EventCard({ s, top, onDetails }: { s: ScoredEvent; top?: boolean; onDet
               Book <ExternalLink size={12} />
             </LinkButton>
           ) : (
-            <span className="text-[11.5px] text-muted">Example — no booking link</span>
+            <span className="text-[11.5px] text-muted">Example event, no booking link</span>
           )}
           <button
             onClick={() => {
@@ -320,7 +320,7 @@ function PasteModal({ open, onClose, university, onSaved }: { open: boolean; onC
 
   const extract = async () => {
     if (!text.trim()) {
-      toast.error(isInstagram ? "We can't read Instagram posts directly — paste the caption text" : "Paste the announcement text first");
+      toast.error(isInstagram ? "We can't read Instagram posts directly. Paste the caption text" : "Paste the announcement text first");
       return;
     }
     setLoading(true);
@@ -363,7 +363,7 @@ function PasteModal({ open, onClose, university, onSaved }: { open: boolean; onC
       provider: "manual",
     });
     setLoading(false);
-    if (!fields.date) toast.warning("No date found — please set it before saving");
+    if (!fields.date) toast.warning("No date found. Please set it before saving");
   };
 
   const save = () => {
@@ -388,7 +388,7 @@ function PasteModal({ open, onClose, university, onSaved }: { open: boolean; onC
       {!draft ? (
         <div className="space-y-4">
           <p className="text-[13.5px] text-ink-2">
-            Paste a society post, email or Instagram caption. STAY extracts the details — it only uses what&apos;s in the text and never invents missing info.
+            Paste a society post, email or Instagram caption. STAY extracts the details. It only uses what&apos;s in the text and never invents missing info.
           </p>
           <div>
             <Label hint="(optional)">Link to the post or page</Label>
@@ -421,7 +421,7 @@ function PasteModal({ open, onClose, university, onSaved }: { open: boolean; onC
       ) : (
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-[12.5px] text-muted">
-            {source === "ai" ? "Extracted with AI from your text" : "Extracted with rules from your text"} — check and edit before saving.
+            {source === "ai" ? "Extracted with AI from your text" : "Extracted with rules from your text"}. check and edit before saving.
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -484,7 +484,7 @@ function PasteModal({ open, onClose, university, onSaved }: { open: boolean; onC
               Save event
             </Button>
           </div>
-          {draft.date < todayISO() && <p className="text-right text-[12px] text-red-600">This date is in the past — past events aren&apos;t added.</p>}
+          {draft.date < todayISO() && <p className="text-right text-[12px] text-red-600">This date is in the past. Past events aren&apos;t added.</p>}
         </div>
       )}
     </Modal>

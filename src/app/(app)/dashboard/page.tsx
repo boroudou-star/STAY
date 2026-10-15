@@ -42,7 +42,7 @@ export default function Dashboard() {
             <Sparkles size={16} className="text-teal" />
             <span>
               <b>STAY adapted your plan.</b> {lastChange.added} new task{lastChange.added === 1 ? "" : "s"}, {lastChange.removed} no longer relevant removed
-              {lastChange.keptCompleted ? `, ${lastChange.keptCompleted} completed kept` : ""} — your completed work is preserved.
+              {lastChange.keptCompleted ? `, ${lastChange.keptCompleted} completed kept` : ""}. your completed work is preserved.
             </span>
           </span>
           <button onClick={() => useStay.setState({ lastChange: null })} className="rounded-lg p-1 text-muted hover:bg-white" aria-label="Dismiss">

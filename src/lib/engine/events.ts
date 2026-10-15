@@ -140,7 +140,7 @@ export function scoreEvent(e: CareerEvent, p: UserProfile, gapCanon: Set<string>
   const explanation =
     reasons.length > 0
       ? `Recommended because it's ${reasons.slice(0, 2).join(" and ")}.${e.benefits.length ? ` Good for: ${e.benefits.slice(0, 2).join(" · ")}.` : ""}`
-      : `General event — limited direct link to ${goal}.`;
+      : `General event, limited direct link to ${goal}.`;
 
   return { event: e, score, reasons, explanation, matchedGaps };
 }

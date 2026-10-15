@@ -235,7 +235,7 @@ export default function Onboarding() {
           )}
 
           {step === 2 && (
-            <StepWrap title="What kind of career are you interested in?" subtitle="Pick as many as you like — the first one you pick is treated as your main goal.">
+            <StepWrap title="What kind of career are you interested in?" subtitle="Pick as many as you like. The first one you pick is treated as your main goal.">
               <div className="flex flex-wrap gap-2">
                 {TRACKS.map((t) => {
                   const idx = p.careerGoals.indexOf(t.id);
@@ -455,7 +455,7 @@ function ExperienceStep({
 }) {
   const [extracting, setExtracting] = useState(false);
   const fields: [keyof Experience, string, string][] = [
-    ["internships", "Previous internships", "Company, role, dates — leave blank if none"],
+    ["internships", "Previous internships", "Company, role, dates. Leave blank if none"],
     ["partTime", "Part-time work", "e.g. Barista, tutoring"],
     ["projects", "Personal / university projects", "What you built and what it did"],
     ["research", "Research experience", "Lab work, dissertation, RA roles"],
@@ -482,11 +482,11 @@ function ExperienceStep({
     const merged = Array.from(new Set([...existing, ...skills]));
     setTechText(merged.join(", "));
     setExtracting(false);
-    toast.success(skills.length ? `Found ${skills.length} skills mentioned in your CV` : "No recognised skills found — add them manually");
+    toast.success(skills.length ? `Found ${skills.length} skills mentioned in your CV` : "No recognised skills found. Add them manually");
   };
 
   return (
-    <StepWrap title="Your experience so far" subtitle="Only what you've actually done — STAY never invents experience. Leave anything blank.">
+    <StepWrap title="Your experience so far" subtitle="Only what you've actually done. STAY never invents experience. Leave anything blank.">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Label hint="(comma-separated)">Technical skills</Label>
@@ -551,7 +551,7 @@ function VisaStep({ p, update, onSkip }: { p: UserProfile; update: (patch: Parti
     <StepWrap title="Visa considerations" subtitle="Optional and private. We never ask for passport numbers or documents.">
       <div className="mb-5 flex items-start gap-3 rounded-2xl bg-blue-soft p-4 text-[13.5px] text-ink-2">
         <ShieldCheck size={18} className="mt-0.5 shrink-0 text-blue" />
-        <span>Not every international student needs sponsorship. This only changes how we flag sponsorship information and timelines. General information — not legal advice.</span>
+        <span>Not every international student needs sponsorship. This only changes how we flag sponsorship information and timelines. General information, not legal advice.</span>
       </div>
       <Label>Do you need employer visa sponsorship to work in the UK long-term?</Label>
       <div className="mb-5 flex flex-wrap gap-2">

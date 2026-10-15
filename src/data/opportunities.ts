@@ -48,7 +48,7 @@ const SEEDS: Seed[] = [
   },
   {
     id: "opp-03",
-    title: "Software Engineer — Graduate Intake",
+    title: "Software Engineer, Graduate Intake",
     company: "Brightwire Systems",
     companyBlurb: "Fictional enterprise software company.",
     location: "Manchester",
@@ -126,7 +126,7 @@ const SEEDS: Seed[] = [
   },
   {
     id: "opp-08",
-    title: "Research Assistant — Computational Biology",
+    title: "Research Assistant in Computational Biology",
     company: "Fernhill Institute",
     companyBlurb: "Fictional research institute.",
     location: "Cambridge",
@@ -157,7 +157,7 @@ const SEEDS: Seed[] = [
   },
   {
     id: "opp-10",
-    title: "Spring Insight Week — Technology",
+    title: "Spring Insight Week: Technology",
     company: "Brightwire Systems",
     location: "London",
     type: "spring_insight",
@@ -186,7 +186,7 @@ const SEEDS: Seed[] = [
   },
   {
     id: "opp-12",
-    title: "Industrial Placement — Robotics Software",
+    title: "Industrial Placement in Robotics Software",
     company: "Kestrel Robotics",
     companyBlurb: "Fictional robotics manufacturer.",
     location: "Bristol",
@@ -287,7 +287,7 @@ const SEEDS: Seed[] = [
   },
   {
     id: "opp-19",
-    title: "Graduate Engineer — Systems",
+    title: "Graduate Systems Engineer",
     company: "Calder Energy",
     location: "Edinburgh",
     type: "graduate_scheme",
@@ -336,9 +336,202 @@ const COMPANY_TYPES: Record<string, CompanyType> = {
   "Calder Energy": "Big tech",
 };
 
+
+/**
+ * Role-specific detail for each demo listing: what each skill is actually used for in THIS job,
+ * and what the job involves day to day. Where a role needs a more specific skill than the
+ * generic one, the skill list is overridden here.
+ */
+const ROLE_DETAILS: Record<string, { skillsRequired?: string[]; niceToHave?: string[]; context: Record<string, string>; responsibilities: string[] }> = {
+  "opp-01": {
+    context: {
+      Python: "Writing the services that run clinical note models for hospital customers.",
+      "Machine learning": "Training and fine tuning models that summarise and classify patient records.",
+      Git: "Daily pull requests and code review in a regulated codebase.",
+      "Software testing": "Mandatory here: healthcare software is audited, so untested code doesn't ship.",
+      PyTorch: "The team's framework for model experiments.",
+      Deployment: "Shipping models behind APIs used by hospital staff.",
+    },
+    responsibilities: ["Rotate through ML research, platform and product teams over two years", "Build and evaluate models on de-identified health records", "Ship features to hospital customers alongside senior engineers"],
+  },
+  "opp-02": {
+    context: {
+      Python: "Analysing transaction data and building fraud and credit features.",
+      SQL: "Pulling millions of payment records from the data warehouse every day.",
+      Statistics: "Judging whether a change in default rates is real or just noise.",
+      "Machine learning": "Building and monitoring credit risk and fraud models.",
+      "Experiment design": "Running A/B tests on onboarding and pricing.",
+    },
+    responsibilities: ["Own analyses for the lending product team", "Build features and models for fraud detection", "Present findings to product managers every week"],
+  },
+  "opp-03": {
+    context: {
+      "Data structures & algorithms": "Tested in the online assessment, then used daily when processing large customer datasets.",
+      Git: "Feature branches and code review on every change.",
+      "JavaScript / TypeScript": "The main language for the web product and its APIs.",
+      "Software testing": "Unit and integration tests run on every merge.",
+    },
+    responsibilities: ["Join a product squad building enterprise workflow software", "Ship features end to end with a mentor", "Join the on-call rotation after six months"],
+  },
+  "opp-04": {
+    context: {
+      Python: "Experiment code and data pipelines for language model research.",
+      PyTorch: "Implementing and training model variants.",
+      "Machine learning": "Reading loss curves, debugging training runs and evaluating results.",
+    },
+    responsibilities: ["Run a ten week research project with a mentor", "Implement and evaluate one change to a model", "Present results at an internal research seminar"],
+  },
+  "opp-05": {
+    context: {
+      Python: "Pipelines that turn raw NHS data extracts into model features.",
+      "Machine learning": "Training readmission risk models for hospital patients.",
+      SQL: "Querying hospital data warehouses.",
+      Deployment: "Packaging models with Docker and serving them to clinicians' dashboards.",
+      "Model evaluation": "Checking performance across patient groups so the model is fair and safe.",
+    },
+    responsibilities: ["Own one model in production, from training to monitoring", "Work with clinicians to validate predictions", "Improve data pipelines and alerting"],
+  },
+  "opp-06": {
+    skillsRequired: ["Structured problem solving", "Client communication", "Excel modelling", "Data analysis"],
+    niceToHave: ["PowerPoint storytelling", "SQL"],
+    context: {
+      "Structured problem solving": "Breaking a client's technology problem into workstreams and hypotheses. Tested in the case interview.",
+      "Client communication": "Presenting findings to client stakeholders, often senior, from your first project.",
+      "Excel modelling": "Building cost models and business cases for technology change programmes.",
+      "Data analysis": "Analysing client data to size savings and opportunities.",
+      "PowerPoint storytelling": "Turning analysis into slides a client director can read in two minutes.",
+      SQL: "Useful on data heavy projects where client data is in databases.",
+    },
+    responsibilities: ["Work on two or three client projects a year across sectors", "Build business cases and cost models", "Prepare and present slides to client teams"],
+  },
+  "opp-07": {
+    context: {
+      Python: "Writing ETL jobs that move shipment tracking data.",
+      SQL: "Modelling tables for routing and delivery time analytics.",
+      "Cloud basics": "Pipelines run on cloud storage and scheduled cloud jobs.",
+    },
+    responsibilities: ["Build a data pipeline for delivery time reporting", "Add data quality checks", "Document and hand over your pipeline"],
+  },
+  "opp-08": {
+    context: {
+      Python: "Running analysis pipelines on sequencing data.",
+      R: "Statistical analysis and publication figures.",
+      Statistics: "Choosing the right tests for gene expression comparisons.",
+      "Scientific writing": "Contributing methods sections and figure legends to papers.",
+    },
+    responsibilities: ["Run analysis pipelines on sequencing datasets", "Support postdocs with statistics and figures", "Co-author methods and supplementary material"],
+  },
+  "opp-09": {
+    context: {
+      Python: "Building and backtesting portfolio signals.",
+      Statistics: "Testing whether a signal's returns are significant rather than luck.",
+      Mathematics: "Probability, linear algebra and optimisation for portfolio construction.",
+      Excel: "Quick checks and reports for portfolio managers.",
+    },
+    responsibilities: ["Research and backtest investment signals", "Maintain risk and performance reports", "Explain results to portfolio managers"],
+  },
+  "opp-10": {
+    context: {
+      Communication: "Presenting a mini project to engineers at the end of the week.",
+      Teamwork: "Working in a team of five on a business challenge, observed by assessors.",
+    },
+    responsibilities: ["Shadow engineers and product managers for a week", "Complete a team challenge", "Meet graduates and recruiters"],
+  },
+  "opp-11": {
+    context: {
+      SQL: "Measuring how users engage with new AI features.",
+      "Data analysis": "Turning usage data into product recommendations.",
+      Communication: "Writing short decision memos for product managers.",
+      "Experiment design": "Designing A/B tests for AI powered features.",
+    },
+    responsibilities: ["Define success metrics for AI features", "Run and analyse experiments", "Share weekly insights with product teams"],
+  },
+  "opp-12": {
+    context: {
+      Python: "Scripting test tools for robot software.",
+      "C++": "The robot control code runs in C++.",
+      Mathematics: "Kinematics and control maths for robot arms.",
+    },
+    responsibilities: ["Develop and test control software modules", "Run hardware in the loop tests", "Document changes for safety reviews"],
+  },
+  "opp-13": {
+    context: {
+      Python: "The backend services are written in Python.",
+      SQL: "Designing database schemas for appointment and patient data.",
+      "Software testing": "High test coverage is required for health data.",
+      "System design": "Designing APIs that scale across many GP practices.",
+    },
+    responsibilities: ["Build and maintain appointment booking APIs", "Write tests and monitor services", "Take part in design reviews"],
+  },
+  "opp-14": {
+    context: {
+      Excel: "Cleaning and analysing survey data for public sector clients.",
+      SQL: "Querying government open data and client databases.",
+      "Data visualisation": "Building dashboards that councils use to track services.",
+      Communication: "Explaining findings to non-technical public officials.",
+    },
+    responsibilities: ["Analyse public service data for councils and departments", "Build dashboards and reports", "Present findings to client teams"],
+  },
+  "opp-15": {
+    context: {
+      Python: "Research code for model experiments.",
+      PyTorch: "Training and fine tuning clinical language models.",
+      "Model evaluation": "Designing evaluations that catch clinically dangerous errors.",
+      Statistics: "Confidence intervals on model performance with small datasets.",
+    },
+    responsibilities: ["Run a research project on model evaluation", "Build evaluation datasets with clinicians", "Write up results for the team"],
+  },
+  "opp-16": {
+    context: {
+      Copywriting: "Writing ad, social and email copy for client brands.",
+      "Social media": "Running TikTok and Instagram channels for clients.",
+      Analytics: "Reporting campaign reach and conversions to clients.",
+    },
+    responsibilities: ["Support campaigns for three or four client brands", "Write and schedule social content", "Report results to clients monthly"],
+  },
+  "opp-17": {
+    context: {
+      Python: "Building analysis pipelines for genomic data.",
+      R: "Statistical analysis with Bioconductor packages.",
+      Statistics: "Differential expression and multiple testing correction.",
+      "Lab or computational methods": "Working with wet lab scientists to design experiments.",
+    },
+    responsibilities: ["Analyse sequencing data from drug discovery experiments", "Maintain reproducible pipelines", "Present results to research teams"],
+  },
+  "opp-18": {
+    context: {
+      "JavaScript / TypeScript": "React front end and Node back end for the learning platform.",
+      SQL: "Postgres database for student progress data.",
+      Git: "Pull requests and code review on every change.",
+      "Software testing": "Automated tests before each weekly release.",
+    },
+    responsibilities: ["Build features used by students and teachers", "Fix bugs reported by schools", "Ship weekly releases with the team"],
+  },
+  "opp-19": {
+    context: {
+      Mathematics: "Modelling grid and plant system performance.",
+      MATLAB: "Simulating electrical and control systems.",
+      "Project management": "Coordinating tasks across engineering disciplines.",
+    },
+    responsibilities: ["Rotate across design, operations and project teams", "Model system performance", "Work towards chartership"],
+  },
+  "opp-20": {
+    context: {
+      Python: "Running experiments on language model behaviour.",
+      "Machine learning": "Understanding how models are trained and fine tuned.",
+      "Scientific writing": "Writing up findings as a research paper.",
+    },
+    responsibilities: ["Run a safety research project over twelve weeks", "Design experiments that test model behaviour", "Publish a write-up"],
+  },
+};
+
 export function getDemoOpportunities(today = todayISO()): Opportunity[] {
   return SEEDS.map(({ deadlineInDays, ...o }) => ({
     ...o,
+    skillsRequired: ROLE_DETAILS[o.id]?.skillsRequired ?? o.skillsRequired,
+    niceToHave: ROLE_DETAILS[o.id]?.niceToHave ?? o.niceToHave,
+    skillContext: ROLE_DETAILS[o.id]?.context,
+    responsibilities: ROLE_DETAILS[o.id]?.responsibilities,
     companyType: COMPANY_TYPES[o.company],
     skillsSource: "structured" as const,
     deadline: deadlineInDays !== undefined ? addDays(today, deadlineInDays) : undefined,

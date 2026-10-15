@@ -102,7 +102,7 @@ export function Badge({ tone = "neutral", className, children }: { tone?: Tone; 
 export function DemoBadge({ className, label = "Demo data" }: { className?: string; label?: string }) {
   return (
     <span
-      title="Illustrative example — not a real, verified listing"
+      title="Illustrative example, not a real, verified listing"
       className={cn("inline-flex items-center gap-1 rounded-full border border-dashed border-ink/25 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted", className)}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-muted/60" />

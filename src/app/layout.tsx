@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "STAY — Your future, mapped out",
+  title: "STAY: Your future, mapped out",
   description:
     "AI career navigation for international students and graduates in the UK: personalised roadmaps, opportunities, campus events and coffee chats.",
 };

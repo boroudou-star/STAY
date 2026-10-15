@@ -9,7 +9,8 @@ Rules:
 - Use ONLY the facts provided. Never invent dates, employers, events, vacancies, salaries or visa rules.
 - You may mention task titles, gaps, the top event or top opportunity exactly as given.
 - If needsSponsorship is true, you may suggest asking employers about sponsorship early, but never promise eligibility.
-- Friendly, Gen-Z-aware but professional. Second person. No emojis, no lists, no headings.`;
+- Friendly, Gen-Z-aware but professional. Second person. No emojis, no lists, no headings.
+Do not use dashes as punctuation.`;
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));

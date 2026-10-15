@@ -56,7 +56,7 @@ export interface VisaSummary {
 
 export function visaSummary(p: UserProfile, today = todayISO()): VisaSummary {
   if (p.visa.skipped) {
-    return { relevant: false, headline: "You skipped visa questions — STAY works normally without them.", points: [] };
+    return { relevant: false, headline: "You skipped visa questions. STAY works normally without them.", points: [] };
   }
   if (p.visa.needsSponsorship === "no") {
     return {

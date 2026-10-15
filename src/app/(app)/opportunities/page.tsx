@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, BookmarkCheck, Building2, CalendarClock, CheckCircle2, ExternalLink, Info, MapPin, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { Bookmark, BookmarkCheck, Briefcase, Building2, CalendarClock, CheckCircle2, ChevronDown, ExternalLink, Info, MapPin, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -8,6 +8,8 @@ import { liveJobSearches } from "@/data/opportunities";
 import { SKILL_GUIDES, canonicalSkill, DEFAULT_GUIDE, roleForTrack, TRACK_MAP } from "@/data/careers";
 import { Badge, Button, Card, Chip, DemoBadge, EmptyState, Input, LinkButton, LiveBadge, Modal, PageHeader, Tabs } from "@/components/ui";
 import { OPPORTUNITY_TYPE_LABEL } from "@/lib/engine/opportunities";
+import { hasSkill, userSkills } from "@/lib/engine/skills";
+import { ResourceList } from "@/components/resource-list";
 import { useDerived, useLiveOpportunities } from "@/lib/hooks";
 import { useStay } from "@/lib/store";
 import { showEffects } from "@/components/effects-toast";
@@ -52,7 +54,7 @@ export default function OpportunitiesPage() {
       <PageHeader
         eyebrow="Find opportunities"
         title="Opportunities matched to you"
-        description={`Ranked by requirement alignment with your ${goal.noun} goals, skills, graduation date${!d.profile.visa.skipped && d.profile.visa.needsSponsorship === "yes" ? ", sponsorship needs" : ""} and location. A score shows fit — never your chance of being hired.`}
+        description={`Ranked by requirement alignment with your ${goal.noun} goals, skills, graduation date${!d.profile.visa.skipped && d.profile.visa.needsSponsorship === "yes" ? ", sponsorship needs" : ""} and location. A score shows fit, never your chance of being hired.`}
       />
 
       <div className="mb-5 flex flex-col gap-3 rounded-3xl border border-dashed border-ink/20 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -61,11 +63,11 @@ export default function OpportunitiesPage() {
           <span>
             {live.status === "ok" ? (
               <>
-                <b>{live.count} live roles</b> from Adzuna for &ldquo;{keyword}&rdquo; in {city}, scored with the same engine — plus <b>fictional demo listings</b> (labelled) that show the full matching.
+                <b>{live.count} live roles</b> from Adzuna for &ldquo;{keyword}&rdquo; in {city}, scored with the same engine, plus <b>fictional demo listings</b> (labelled) that show the full matching.
               </>
             ) : (
               <>
-                Listings below are <b>fictional examples</b> showing how matching works — not real vacancies.{" "}
+                Listings below are <b>fictional examples</b> showing how matching works, not real vacancies.{" "}
                 {live.status === "off" ? "Add Adzuna API keys to pull live roles into the same scoring engine." : live.status === "loading" ? "Checking for live roles…" : "Live roles are unavailable right now."}
               </>
             )}
@@ -191,7 +193,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
         <button
           onClick={() => {
             const fx = toggleSavedOpp(o.id);
-            toast.success(saved ? "Removed from saved" : "Saved — find it under Saved");
+            toast.success(saved ? "Removed from saved" : "Saved. Find it under Saved");
             showEffects(fx);
           }}
           className={cn("rounded-xl p-2 transition-colors", saved ? "bg-lime/50 text-ink" : "text-muted hover:bg-paper-2 hover:text-ink")}
@@ -231,18 +233,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
         </Fact>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {s.matchedSkills.map((k) => (
-          <Badge key={k} tone="teal">
-            ✓ {k}
-          </Badge>
-        ))}
-        {s.missingSkills.map((k) => (
-          <Badge key={k} tone="sun">
-            + {k}
-          </Badge>
-        ))}
-      </div>
+      <RoleSkills s={s} />
 
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
         <Button
@@ -250,7 +241,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
           variant={inRoadmap ? "secondary" : "primary"}
           disabled={inRoadmap}
           onClick={() => {
-            if (addOpportunityToRoadmap(o)) toast.success("Added to your roadmap", { description: o.deadline ? `Target: 2 days before the ${o.isDemo ? "example " : ""}deadline` : "Deadline not verified — set your own date" });
+            if (addOpportunityToRoadmap(o)) toast.success("Added to your roadmap", { description: o.deadline ? `Target: 2 days before the ${o.isDemo ? "example " : ""}deadline` : "Deadline not verified. Set your own date" });
           }}
         >
           {inRoadmap ? <CheckCircle2 size={14} /> : <Plus size={14} />} {inRoadmap ? "In roadmap" : "Add to roadmap"}
@@ -260,7 +251,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
           variant="secondary"
           onClick={() => {
             const fx = toggleApplied(o.id);
-            toast.success(applied ? "Unmarked as applied" : "Marked as applied — good luck! 🍀");
+            toast.success(applied ? "Unmarked as applied" : "Marked as applied. Good luck! 🍀");
             showEffects(fx);
           }}
         >
@@ -306,10 +297,16 @@ const STATUS_STYLE: Record<MatchFactor["status"], string> = {
 function ScoreModal({ s, onClose }: { s: ScoredOpportunity; onClose: () => void }) {
   const o = s.opportunity;
   const addSkillTask = useStay((st) => st.addSkillTaskToRoadmap);
+  const profile = useStay((st) => st.profile)!;
+  const mine = userSkills(profile);
+  const gaps = [
+    ...s.missingSkills.map((k) => ({ k, essential: true })),
+    ...(o.niceToHave ?? []).filter((k) => !hasSkill(mine, k)).map((k) => ({ k, essential: false })),
+  ];
   return (
     <Modal open onClose={onClose} title={`Why ${s.score}% for ${o.title}`} wide>
       <p className="mb-4 text-[13.5px] text-ink-2">
-        Requirement alignment = weighted sum of the factors below. It describes how well your stated profile matches what the listing asks for — not your odds of an offer.
+        Requirement alignment = weighted sum of the factors below. It describes how well your stated profile matches what the listing asks for, not your odds of an offer.
       </p>
       <div className="space-y-3">
         {s.factors.map((f) => (
@@ -327,32 +324,58 @@ function ScoreModal({ s, onClose }: { s: ScoredOpportunity; onClose: () => void 
           </div>
         ))}
       </div>
-      {s.missingSkills.length > 0 && (
-        <div className="mt-6 rounded-2xl bg-paper p-4">
-          <div className="mb-2 font-display font-semibold">Skills to improve for this role</div>
-          <div className="space-y-2.5">
-            {s.missingSkills.map((m) => {
-              const g = SKILL_GUIDES[canonicalSkill(m)] ?? DEFAULT_GUIDE;
+      {o.responsibilities && o.responsibilities.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-line p-4">
+          <div className="mb-2 flex items-center gap-2 font-display font-semibold">
+            <Briefcase size={16} className="text-blue" /> What you&apos;d actually do
+          </div>
+          <ul className="space-y-1 text-[13.5px] text-ink-2">
+            {o.responsibilities.map((r) => (
+              <li key={r}>• {r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {gaps.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-paper p-4">
+          <div className="mb-1 font-display font-semibold">Skills to build for this role</div>
+          <p className="mb-3 text-[12.5px] text-muted">Why each one matters in this job, and where to learn it.</p>
+          <div className="space-y-5">
+            {gaps.map(({ k, essential }) => {
+              const g = SKILL_GUIDES[canonicalSkill(k)] ?? DEFAULT_GUIDE;
               return (
-                <div key={m} className="flex items-start justify-between gap-3">
-                  <div className="text-[13px]">
-                    <b>{m}</b> — <span className="text-ink-2">{g.learn[0]}</span>
+                <div key={k}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-[13.5px]">
+                      <span className="font-semibold">{k}</span> <Badge tone={essential ? "sun" : "neutral"}>{essential ? "Essential" : "Nice to have"}</Badge>
+                      <p className="mt-1 text-ink-2">{o.skillContext?.[k] ? <>In this role: {o.skillContext[k]}</> : g.why}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        const ok = addSkillTask({
+                          key: `skill-${canonicalSkill(k)}`,
+                          title: `Build ${k} for ${o.company}: ${g.learn[0].charAt(0).toLowerCase() + g.learn[0].slice(1)}`,
+                          description: o.skillContext?.[k] ? `In the ${o.title} role: ${o.skillContext[k]}` : g.why,
+                          skill: k,
+                          days: 21,
+                          category: "skills",
+                        });
+                        toast[ok ? "success" : "info"](ok ? "Added to roadmap" : "Already in your roadmap");
+                      }}
+                    >
+                      <Plus size={13} /> Roadmap
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      const ok = addSkillTask({ key: `skill-${canonicalSkill(m)}`, title: `Build ${m}: ${g.learn[0].charAt(0).toLowerCase() + g.learn[0].slice(1)}`, description: g.why, skill: m, days: 21, category: "skills" });
-                      toast[ok ? "success" : "info"](ok ? "Added to roadmap" : "Already in your roadmap");
-                    }}
-                  >
-                    <Plus size={13} /> Roadmap
-                  </Button>
+                  <div className="mt-2">
+                    <ResourceList skill={k} compact />
+                  </div>
                 </div>
               );
             })}
           </div>
-          <Link href="/skills" className="mt-3 inline-block text-[13px] font-semibold text-blue hover:underline" onClick={onClose}>
+          <Link href="/skills" className="mt-4 inline-block text-[13px] font-semibold text-blue hover:underline" onClick={onClose}>
             Full skills analysis →
           </Link>
         </div>
@@ -362,5 +385,49 @@ function ScoreModal({ s, onClose }: { s: ScoredOpportunity; onClose: () => void 
         {o.verifiedAt ? ` · last checked ${formatDate(o.verifiedAt)}` : " · demo data, not verified"}
       </p>
     </Modal>
+  );
+}
+
+/** The skills THIS role needs, what each is used for in the job, and whether you have it. */
+function RoleSkills({ s }: { s: ScoredOpportunity }) {
+  const profile = useStay((st) => st.profile)!;
+  const [open, setOpen] = useState(false);
+  const o = s.opportunity;
+  const mine = userSkills(profile);
+  const rows = [
+    ...o.skillsRequired.map((k) => ({ k, essential: true })),
+    ...(o.niceToHave ?? []).map((k) => ({ k, essential: false })),
+  ].map((r) => ({ ...r, have: hasSkill(mine, r.k), ctx: o.skillContext?.[r.k] }));
+  const essentials = rows.filter((r) => r.essential);
+  const shown = open ? rows : rows.slice(0, 3);
+  if (!rows.length) return <p className="mt-3 text-[12.5px] text-muted">No specific skills found in this listing. Check the original advert.</p>;
+  return (
+    <div className="mt-3 rounded-2xl border border-line">
+      <div className="flex items-center justify-between border-b border-line px-3 py-2">
+        <span className="text-[11.5px] font-semibold uppercase tracking-wide text-muted">{o.skillsSource === "description" ? "Skills mentioned in this listing" : "What this role needs"}</span>
+        <span className="text-[11.5px] font-medium text-ink-2">
+          You have {essentials.filter((r) => r.have).length} of {essentials.length} essentials
+        </span>
+      </div>
+      <ul className="divide-y divide-line/70">
+        {shown.map((r) => (
+          <li key={r.k} className="flex items-start gap-2.5 px-3 py-2">
+            <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold", r.have ? "bg-teal-soft text-teal" : "bg-sun-soft text-[#c2502f]")}>
+              {r.have ? "✓" : "+"}
+            </span>
+            <span className="min-w-0 text-[13px] leading-snug">
+              <span className="font-semibold">{r.k}</span>
+              {!r.essential && <span className="ml-1.5 text-[11px] text-muted">nice to have</span>}
+              {r.ctx && <span className="block text-ink-2">{r.ctx}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {rows.length > 3 && (
+        <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-center gap-1 border-t border-line py-1.5 text-[12px] font-medium text-muted hover:text-ink">
+          {open ? "Show less" : `Show all ${rows.length} skills`} <ChevronDown size={13} className={cn("transition-transform", open && "rotate-180")} />
+        </button>
+      )}
+    </div>
   );
 }

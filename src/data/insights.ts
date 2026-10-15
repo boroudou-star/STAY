@@ -39,18 +39,18 @@ export const INSIGHT_AREAS: InsightArea[] = [
         id: "ai-1",
         title: "How AI companies make money",
         body: "Most AI revenue comes from a few models: selling API access priced per token, subscriptions for apps built on models, enterprise licences with support and privacy guarantees, and selling the compute (chips and cloud) underneath. Margins depend heavily on the cost of running models (inference) versus what customers will pay.",
-        questions: ["Which of these business models do you think is most defensible, and why?", "If inference costs fell by 10x, who would benefit most — model labs, app builders or customers?"],
+        questions: ["Which of these business models do you think is most defensible, and why?", "If inference costs fell by 10x, who would benefit most: model labs, app builders or customers?"],
       },
       {
         id: "ai-2",
         title: "Why evaluation is the hard part",
-        body: "Training a model is only half the job — knowing whether it works for a real use case is often harder. Teams build evaluation sets, measure failure modes, and monitor models after launch because performance on benchmarks doesn't always transfer to messy real data.",
+        body: "Training a model is only half the job. Knowing whether it works for a real use case is often harder. Teams build evaluation sets, measure failure modes, and monitor models after launch because performance on benchmarks doesn't always transfer to messy real data.",
         questions: ["Describe how you'd evaluate a model in one of your own projects. What could fool your metric?", "Why might a company prefer a slightly weaker model that is easier to evaluate?"],
       },
       {
         id: "ai-3",
         title: "Regulation and trust",
-        body: "Governments are setting rules for how AI is built and used — covering transparency, high-risk uses, copyright and safety testing. For employers, this creates demand for people who can explain model behaviour, document data sources and manage risk alongside building products.",
+        body: "Governments are setting rules for how AI is built and used, covering transparency, high-risk uses, copyright and safety testing. For employers, this creates demand for people who can explain model behaviour, document data sources and manage risk alongside building products.",
         questions: ["Pick one AI use case (e.g. hiring, healthcare). What risks should a company manage before launching it?", "How could regulation create new jobs in AI rather than reduce them?"],
       },
     ],
@@ -72,13 +72,13 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "tech-2",
         title: "Platforms and network effects",
-        body: "A product has network effects when each new user makes it more valuable for others — marketplaces, social networks, developer ecosystems. These can create strong moats, but they're hard to start (the 'cold start' problem) and can attract regulatory scrutiny once dominant.",
+        body: "A product has network effects when each new user makes it more valuable for others: marketplaces, social networks, developer ecosystems. These can create strong moats, but they're hard to start (the 'cold start' problem) and can attract regulatory scrutiny once dominant.",
         questions: ["Name a product with network effects. How did it solve its cold-start problem?", "When can network effects work against a company?"],
       },
       {
         id: "tech-3",
         title: "Build vs buy",
-        body: "Engineering teams constantly choose between building in-house and using vendors or open-source tools. The trade-off is control and differentiation versus speed, cost and maintenance burden — a common theme in technical and behavioural interviews.",
+        body: "Engineering teams constantly choose between building in-house and using vendors or open-source tools. The trade-off is control and differentiation versus speed, cost and maintenance burden, a common theme in technical and behavioural interviews.",
         questions: ["Describe a project where you chose to use an existing library instead of building something. Was it the right call?", "What would make you build something in-house at a company?"],
       },
     ],
@@ -122,7 +122,7 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "con-1",
         title: "How consulting firms make money",
-        body: "Firms sell expertise by the project, typically priced on team time or outcomes. Profitability depends on utilisation (how much of consultants' time is billed), pricing and leverage (the ratio of junior to senior staff). Graduates are the engine of leverage — which is why they hire in large cohorts.",
+        body: "Firms sell expertise by the project, typically priced on team time or outcomes. Profitability depends on utilisation (how much of consultants' time is billed), pricing and leverage (the ratio of junior to senior staff). Graduates are the engine of leverage, which is why they hire in large cohorts.",
         questions: ["Why might a client pay a consultant instead of hiring their own team?", "How could AI change the leverage model in consulting?"],
       },
       {
@@ -134,7 +134,7 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "con-3",
         title: "Market sizing without panic",
-        body: "Interviewers want a clear structure, sensible rounded assumptions and a sanity check — not the 'right' number. Top-down (population → segment → usage) and bottom-up (units × capacity) approaches can be compared to test your estimate.",
+        body: "Interviewers want a clear structure, sensible rounded assumptions and a sanity check, not the 'right' number. Top-down (population → segment → usage) and bottom-up (units × capacity) approaches can be compared to test your estimate.",
         questions: ["Estimate how many coffees are sold in London per day. Write your structure first.", "How would you sanity-check your answer?"],
       },
     ],
@@ -156,13 +156,13 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "ib-2",
         title: "Valuation in plain English",
-        body: "Two common approaches: a discounted cash flow (DCF) values a company on the cash it will generate in future, discounted for risk and time; comparables value it relative to similar companies' multiples (e.g. EV/EBITDA). Each has weaknesses — DCFs are sensitive to assumptions, comparables to the choice of peers.",
+        body: "Two common approaches: a discounted cash flow (DCF) values a company on the cash it will generate in future, discounted for risk and time; comparables value it relative to similar companies' multiples (e.g. EV/EBITDA). Each has weaknesses. DCFs are sensitive to assumptions, comparables to the choice of peers.",
         questions: ["Explain to a friend why a fast-growing company with no profit can still be valuable.", "Which valuation method would you trust more for a stable utility company, and why?"],
       },
       {
         id: "ib-3",
         title: "Why 'commercial awareness' matters",
-        body: "Banking interviews often ask you to discuss a deal or market story. They're testing whether you can explain what happened, why it matters to the parties involved, and what might happen next — in a structured, concise way.",
+        body: "Banking interviews often ask you to discuss a deal or market story. They're testing whether you can explain what happened, why it matters to the parties involved, and what might happen next, in a structured, concise way.",
         questions: ["Summarise one market story from this week in three sentences: what, why, so what.", "What risks would you flag on a deal you read about?"],
       },
     ],
@@ -178,7 +178,7 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "fm-1",
         title: "Why interest rates move everything",
-        body: "Central banks raise rates to cool inflation and cut them to support growth. Rates change borrowing costs, how investors value future profits, currency moves and consumer spending — so many market stories trace back to rate expectations.",
+        body: "Central banks raise rates to cool inflation and cut them to support growth. Rates change borrowing costs, how investors value future profits, currency moves and consumer spending, so many market stories trace back to rate expectations.",
         questions: ["How might higher interest rates affect a fast-growing tech startup differently from a supermarket?", "What would you watch to predict the next rate decision?"],
       },
       {
@@ -190,7 +190,7 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "fm-3",
         title: "Risk and return",
-        body: "Higher expected returns usually mean taking more risk — volatility, credit risk, liquidity risk. Diversification reduces risk that's specific to one asset but not market-wide risk. These basics underpin many finance interview questions.",
+        body: "Higher expected returns usually mean taking more risk: volatility, credit risk, liquidity risk. Diversification reduces risk that's specific to one asset but not market-wide risk. These basics underpin many finance interview questions.",
         questions: ["Explain diversification using an example from everyday life.", "Why might a 'safe' investment still lose real value?"],
       },
     ],
@@ -206,13 +206,13 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "hc-1",
         title: "Selling into the NHS",
-        body: "The NHS is not one buyer — decisions are spread across national bodies, regional systems and individual trusts. New products usually need clinical evidence, clear cost savings and compliance with data and safety standards, which makes sales cycles long.",
+        body: "The NHS is not one buyer. Decisions are spread across national bodies, regional systems and individual trusts. New products usually need clinical evidence, clear cost savings and compliance with data and safety standards, which makes sales cycles long.",
         questions: ["Why might a health-tech startup struggle to scale across the NHS even if one hospital loves its product?", "What evidence would convince you a digital health tool is worth funding?"],
       },
       {
         id: "hc-2",
         title: "Data in healthcare",
-        body: "Health data is powerful for research and AI but highly sensitive. Projects must balance patient benefit, consent, security and public trust — and the most successful ones explain their value to patients clearly.",
+        body: "Health data is powerful for research and AI but highly sensitive. Projects must balance patient benefit, consent, security and public trust, and the most successful ones explain their value to patients clearly.",
         questions: ["What would make you comfortable sharing your health data for research?", "Pick one AI healthcare use case. What could go wrong, and how would you prevent it?"],
       },
       {
@@ -262,7 +262,7 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "mk-1",
         title: "Brand vs performance",
-        body: "Performance marketing drives measurable actions now (clicks, sign-ups); brand marketing builds memory and preference over time. Strong teams balance both — over-investing in short-term metrics can erode long-term growth.",
+        body: "Performance marketing drives measurable actions now (clicks, sign-ups); brand marketing builds memory and preference over time. Strong teams balance both. Over-investing in short-term metrics can erode long-term growth.",
         questions: ["Pick a brand you're loyal to. What made you trust it?", "How would you justify brand spend to a CFO who only trusts click data?"],
       },
       {
@@ -284,7 +284,7 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "en-1",
         title: "Why the grid matters",
-        body: "Adding renewable generation is only part of decarbonisation — electricity grids need upgrades, storage and flexible demand to balance supply that varies with weather. Grid connection delays are a major bottleneck for new projects.",
+        body: "Adding renewable generation is only part of decarbonisation. Electricity grids need upgrades, storage and flexible demand to balance supply that varies with weather. Grid connection delays are a major bottleneck for new projects.",
         questions: ["Why might a wind farm be built but not connected for years?", "What kinds of jobs does the grid challenge create?"],
       },
       {
@@ -312,7 +312,7 @@ export const INSIGHT_AREAS: InsightArea[] = [
       {
         id: "ps-2",
         title: "Digital government",
-        body: "Many services are being redesigned around user needs — simple online journeys, shared platforms and better data. The challenge is legacy systems, procurement rules and serving everyone, including people offline.",
+        body: "Many services are being redesigned around user needs: simple online journeys, shared platforms and better data. The challenge is legacy systems, procurement rules and serving everyone, including people offline.",
         questions: ["Pick a government service you've used. What would you improve first?", "How would you design a service that works for people without smartphones?"],
       },
     ],
@@ -343,6 +343,6 @@ export const WEEK_PLAN = [
   { theme: "Key players", task: "List 5 companies in {area}: 2 leaders, 2 challengers, 1 you'd like to work for.", question: "What separates the leaders from the challengers?" },
   { theme: "This week's news", task: "Read two news stories from your feed and reflect on one.", question: "What happened, why does it matter, and what happens next?" },
   { theme: "Risks & regulation", task: "Find one risk or rule that shapes {area}.", question: "Who is most exposed to this risk, and how would you manage it?" },
-  { theme: "Target company deep-dive", task: "Research {company}: products, customers, recent news, and graduate roles.", question: "Why {company}, specifically — and what would you want to work on there?" },
+  { theme: "Target company deep-dive", task: "Research {company}: products, customers, recent news, and graduate roles.", question: "Why {company}, specifically, and what would you want to work on there?" },
   { theme: "Your point of view", task: "Write your 'why this industry' answer using your notebook.", question: "What's your view on where {area} is heading in the next 3 years?" },
 ];

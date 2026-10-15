@@ -77,7 +77,7 @@ export function TubeMap({
             return (
               <div
                 key={t.id}
-                title={`${t.title} — ${formatDate(t.deadline)}`}
+                title={`${t.title} · ${formatDate(t.deadline)}`}
                 className={cn(
                   "absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] transition-transform hover:scale-150",
                   done ? "bg-white" : "bg-white",

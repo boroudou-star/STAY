@@ -9,7 +9,7 @@ import { addDays, todayISO } from "@/lib/utils";
 export const EVENT_SOURCES: EventSource[] = [
   {
     id: "src-ucl-careers",
-    name: "UCL Careers — upcoming events",
+    name: "UCL Careers: upcoming events",
     url: "https://www.ucl.ac.uk/careers/events",
     kind: "website",
     university: "UCL",
@@ -27,7 +27,7 @@ export const EVENT_SOURCES: EventSource[] = [
   },
   {
     id: "src-su-whats-on",
-    name: "Students' Union UCL — What's on",
+    name: "Students' Union UCL: What's on",
     url: "https://studentsunionucl.org/whats-on",
     kind: "website",
     university: "UCL",
@@ -36,7 +36,7 @@ export const EVENT_SOURCES: EventSource[] = [
   },
   {
     id: "src-su-societies",
-    name: "Students' Union UCL — Clubs & societies directory",
+    name: "Students' Union UCL. Clubs & societies directory",
     url: "https://studentsunionucl.org/groups",
     kind: "website",
     university: "UCL",
@@ -155,7 +155,7 @@ const SEEDS: Seed[] = [
     inDays: 10,
     startTime: "16:00",
     endTime: "17:00",
-    location: "Hybrid — lecture theatre + online",
+    location: "Hybrid, lecture theatre + online",
     format: "hybrid",
     category: "panel",
     description: "Overview of post-study work routes and how to talk to employers about sponsorship. General information only.",
@@ -300,7 +300,7 @@ const SEEDS: Seed[] = [
     location: "Student bar",
     format: "in_person",
     category: "networking",
-    description: "Past event — should be filtered out automatically.",
+    description: "Past event, should be filtered out automatically.",
     tracks: ["ai", "software"],
     skills: [],
     benefits: [],
@@ -314,7 +314,7 @@ const SEEDS: Seed[] = [
     location: "Online",
     format: "online",
     category: "skills_training",
-    description: "Cancelled — should be filtered out automatically.",
+    description: "Cancelled, should be filtered out automatically.",
     tracks: ["software"],
     skills: ["Cloud basics"],
     benefits: [],

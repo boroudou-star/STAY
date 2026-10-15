@@ -24,7 +24,7 @@ export default function VisaPage() {
       <PageHeader
         eyebrow="Immigration & work eligibility"
         title="Visa & work options"
-        description="General information to help you plan — not legal advice. Rules change; always check GOV.UK or your university's international student advisers."
+        description="General information to help you plan, not legal advice. Rules change; always check GOV.UK or your university's international student advisers."
         actions={
           <LinkButton href="/profile" variant="secondary">
             Update visa answers
@@ -88,7 +88,7 @@ export default function VisaPage() {
       <h2 className="mb-3 mt-8 font-display text-xl font-semibold">The main routes, in plain English</h2>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Route
-          title="Student visa — working while studying"
+          title="Student visa: working while studying"
           body="Work hours are usually limited during term time. Check the conditions on your own visa before taking internships or part-time work."
           href={VISA_LINKS.studentWork}
         />
@@ -104,7 +104,7 @@ export default function VisaPage() {
         />
         <Route
           title="Register of licensed sponsors"
-          body="Shows which organisations can sponsor. It does NOT tell you whether a particular vacancy offers sponsorship — always ask the employer."
+          body="Shows which organisations can sponsor. It does NOT tell you whether a particular vacancy offers sponsorship. Always ask the employer."
           href={VISA_LINKS.sponsorRegister}
         />
       </div>

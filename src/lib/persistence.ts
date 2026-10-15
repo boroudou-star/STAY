@@ -18,7 +18,7 @@ export const localStorageAdapter: StateStorage = {
     try {
       window.localStorage.setItem(name, value);
     } catch {
-      /* storage full or blocked — app keeps working in memory */
+      /* storage full or blocked, app keeps working in memory */
     }
   },
   removeItem: (name) => {

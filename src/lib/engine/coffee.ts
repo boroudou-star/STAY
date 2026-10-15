@@ -120,14 +120,14 @@ export function outreachTemplate(p: UserProfile, rec: NetworkingRecommendation |
   const who = contact?.name ? contact.name.split(" ")[0] : "[Name]";
   const stage = p.studyStatus === "student" ? `${uni ? `${uni} ` : ""}student` : `recent ${uni ? `${uni} ` : ""}graduate`;
   const hook = contact?.background
-    ? `I was interested in your background — ${contact.background.trim().replace(/\.$/, "")}.`
+    ? `I was interested in your background: ${contact.background.trim().replace(/\.$/, "")}.`
     : contact?.role
       ? `I'd love to hear about your work as ${/^[aeiou]/i.test(contact.role) ? "an" : "a"} ${contact.role}${contact.company ? ` at ${contact.company}` : ""}.`
       : rec
         ? `I'd love to hear how you got into your role as ${/^[aeiou]/i.test(rec.role) ? "an" : "a"} ${rec.role}.`
         : "I'd love to hear about your career path.";
   const sameUni = (rec?.universityConnection || contact) && uni ? ` As a fellow ${uni} person, ` : " ";
-  return `Hi ${who}, I'm a ${stage} interested in ${goal}. ${hook}${sameUni}I'd be grateful for a brief 15-minute chat if you ever have time — no worries at all if not. Thank you!${first ? `\n\n${first}` : ""}`
+  return `Hi ${who}, I'm a ${stage} interested in ${goal}. ${hook}${sameUni}I'd be grateful for a brief 15-minute chat if you ever have time, no worries at all if not. Thank you!${first ? `\n\n${first}` : ""}`
     .replace(/\s+,/g, ",")
     .replace(/ {2,}/g, " ");
 }

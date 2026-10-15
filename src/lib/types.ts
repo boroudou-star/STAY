@@ -148,6 +148,10 @@ export interface Opportunity {
   isDemo: boolean;
   /** "Skills mentioned in listing" when extracted from a live description rather than a structured spec */
   skillsSource?: "structured" | "description";
+  /** What each skill is used for in THIS role (keyed by skill name) */
+  skillContext?: Record<string, string>;
+  /** What you'd actually do in the role */
+  responsibilities?: string[];
 }
 
 export type CompanyType = "Big tech" | "Startups / scale-ups" | "Consultancies" | "Banks & finance" | "Public sector / NHS" | "Research labs";
@@ -328,11 +332,32 @@ export interface InsightEntry {
   question: string;
   answer: string;
   item?: { title: string; url?: string; source: string; kind: FeedItemKind };
+  /** Step-by-step answers when the question was broken down */
+  steps?: { prompt: string; answer: string }[];
   tags: string[];
   feedback?: string;
   followUp?: string;
   parentId?: string;
   createdAt: string;
+}
+
+/** A small, answerable piece of a bigger reflection question. */
+export interface ReflectionStep {
+  key: string;
+  label: string;
+  prompt: string;
+  hint: string;
+  optional?: boolean;
+}
+
+/** Notes taken while reading an article or listening to a podcast. */
+export interface ReadingNote {
+  id: string;
+  item: { id: string; title: string; url?: string; source: string; kind: FeedItemKind; area?: InsightAreaId; company?: string };
+  sections: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+  reflectedEntryId?: string;
 }
 
 export interface InsightPrefs {
@@ -367,12 +392,31 @@ export interface AnswerScores {
   concision: number;
 }
 
+export type HiringVerdict = "strong_hire" | "hire" | "borderline" | "no_hire";
+
+export interface RecruiterNote {
+  /** Exact words from the candidate's answer this note is about (when applicable) */
+  quote?: string;
+  issue: string;
+  fix: string;
+}
+
 export interface AnswerFeedback {
   scores: AnswerScores;
   strengths: string[];
   improvements: string[];
   followUp?: string;
   source: "ai" | "rules";
+  verdict?: HiringVerdict;
+  /** One-line hiring decision rationale, as a hiring manager would write it */
+  headline?: string;
+  /** Precise criticism tied to the candidate's own words */
+  notes?: RecruiterNote[];
+  /** Field-specific criteria the interviewer listens for */
+  lens?: { criterion: string; met: boolean }[];
+  /** Outline of a stronger answer, built from the candidate's material */
+  rewrite?: string;
+  field?: string;
 }
 
 export interface MockTurn {

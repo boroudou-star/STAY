@@ -1,7 +1,9 @@
 "use client";
 
 import confetti from "canvas-confetti";
-import { CalendarDays, Link2 } from "lucide-react";
+import { BookOpen, CalendarDays, Link2 } from "lucide-react";
+import Link from "next/link";
+import { canonicalSkill } from "@/data/careers";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { useStay } from "@/lib/store";
@@ -52,7 +54,7 @@ export function TaskRow({ task, actions, compact }: { task: RoadmapTask; actions
     const effects = toggleTask(task.id);
     if (!done) {
       celebrate(e ? e.clientX / window.innerWidth : 0.5, e ? e.clientY / window.innerHeight : 0.6);
-      toast.success("Nice — progress updated", { description: task.title });
+      toast.success("Nice, progress updated", { description: task.title });
     }
     showEffects(effects);
   };
@@ -81,6 +83,11 @@ export function TaskRow({ task, actions, compact }: { task: RoadmapTask; actions
           {!done && <Badge tone={PRIORITY_TONE[task.priority]}>{task.priority}</Badge>}
           {task.status === "in_progress" && <Badge tone="violet">in progress</Badge>}
           {task.skill && !compact && <Badge tone="teal">{task.skill}</Badge>}
+          {task.skill && (task.category === "skills" || task.category === "projects") && !compact && (
+            <Link href={`/skills#skill-${canonicalSkill(task.skill.split(",")[0]).replace(/[^a-z0-9]+/g, "-")}`} className="inline-flex items-center gap-1 rounded-full border border-blue/20 bg-blue-soft px-2 py-0.5 text-[11.5px] font-medium text-blue hover:border-blue/40">
+              <BookOpen size={10} /> Resources
+            </Link>
+          )}
           {(task.sourceEventId || task.sourceOpportunityId) && !compact && (
             <Badge>
               <Link2 size={10} /> {task.sourceEventId ? "linked event" : "linked opportunity"}

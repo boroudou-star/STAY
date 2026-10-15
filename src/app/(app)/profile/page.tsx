@@ -46,7 +46,7 @@ export default function ProfilePage() {
       <PageHeader
         eyebrow="Profile"
         title="Your profile"
-        description="Change anything — STAY rebuilds your roadmap, re-ranks opportunities and events, and keeps every task you've completed."
+        description="Change anything. STAY rebuilds your roadmap, re-ranks opportunities and events, and keeps every task you've completed."
         actions={
           <Button onClick={save}>
             <Save size={16} /> Save & adapt roadmap

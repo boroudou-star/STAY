@@ -268,7 +268,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       const o = s.opportunity;
       drafts.push({
         templateId: `opp-${o.id}`,
-        title: `Apply: ${o.title} — ${o.company}`,
+        title: `Apply: ${o.title} at ${o.company}`,
         description: `${s.fitSummary} Submit a few days before the closing date.`,
         deadline: clamp(addDays(o.deadline!, -2)),
         priority: daysBetween(today, o.deadline!) <= 14 ? "urgent" : "high",
@@ -297,7 +297,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
         templateId: "grad-apply-5",
         title: `Apply to 5 graduate schemes or junior ${roleName} roles`,
         description: seasonOpen
-          ? "Many UK graduate schemes open in September and close between October and January — some close early or when full. Check each employer's deadline."
+          ? "Many UK graduate schemes open in September and close between October and January, and some close early or when full. Check each employer's deadline."
           : "The main autumn window has largely passed, but many employers recruit year-round and off-cycle. Focus on rolling and entry-level roles.",
         deadline: seasonOpen ? clamp(windowEnd < addDays(today, 35) ? windowEnd : addDays(today, 35)) : at(30),
         priority: "urgent",
@@ -330,7 +330,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       drafts.push({
         templateId: "assessment-centres",
         title: "Prepare for assessment centres and final rounds",
-        description: "Group exercises, presentations and case studies — practise presenting a project in 5 minutes.",
+        description: "Group exercises, presentations and case studies. Practise presenting a project in 5 minutes.",
         deadline: at(110),
         priority: "medium",
         category: "interviews",
@@ -347,10 +347,10 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       }
       drafts.push({
         templateId: "offers-compare",
-        title: needsSponsor ? "Compare offers — including sponsorship and start dates" : "Compare offers and start dates",
+        title: needsSponsor ? "Compare offers, including sponsorship and start dates" : "Compare offers and start dates",
         description: needsSponsor
           ? "Ask each employer in writing whether the specific role can be sponsored under the Skilled Worker route, and when."
-          : "Weigh growth, salary and team — use your priorities from onboarding.",
+          : "Weigh growth, salary and team using the priorities you set in onboarding.",
         deadline: clamp(addMonths(p.graduationDate, -2)),
         priority: "medium",
         category: needsSponsor ? "visa" : "applications",
@@ -395,7 +395,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       drafts.push({
         templateId: "grad-research",
         title: "Shortlist 15 graduate programmes for next autumn",
-        description: "Note opening dates — graduate recruitment starts about a year before graduation.",
+        description: "Note opening dates: graduate recruitment starts about a year before graduation.",
         deadline: clamp(`${gradYear - 1}-08-15`),
         priority: "medium",
         category: "applications",
@@ -416,7 +416,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       drafts.push({
         templateId: "visa-graduate-plan",
         title: `Plan your Graduate visa application (likely ${est.durationLabel})`,
-        description: `${est.basis} Apply before your Student visa expires. General information only — check GOV.UK.`,
+        description: `${est.basis} Apply before your Student visa expires. General information only. Check GOV.UK.`,
         deadline: clamp(addDays(p.graduationDate, -30)),
         priority: "medium",
         category: "visa",
@@ -459,7 +459,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     drafts.push({
       templateId: "grad-review-month3",
       title: "Review your pipeline: response rates, interviews, what to change",
-      description: "If applications aren't converting, adjust your CV, target roles or company types — and ask a coffee-chat contact for feedback.",
+      description: "If applications aren't converting, adjust your CV, target roles or company types, and ask a coffee-chat contact for feedback.",
       deadline: clamp(addDays(today, Math.round(daysBetween(today, h.end) * 0.45))),
       priority: "medium",
       category: "applications",
@@ -494,7 +494,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       drafts.push({
         templateId: "sponsor-check",
         title: "Check your target employers on the register of licensed sponsors",
-        description: "Being licensed doesn't mean a specific role is sponsored — confirm with the employer for each vacancy.",
+        description: "Being licensed doesn't mean a specific role is sponsored. Confirm with the employer for each vacancy.",
         deadline: at(10),
         priority: "high",
         category: "visa",
@@ -512,7 +512,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
         drafts.push({
           templateId: "backup-paths",
           title: "Map backup paths if a sponsored role isn't confirmed",
-          description: "e.g. further study, other eligible routes, or roles elsewhere. Speak to an adviser — STAY doesn't give legal advice.",
+          description: "e.g. Further study, other eligible routes, or roles elsewhere. Speak to an adviser. STAY doesn't give legal advice.",
           deadline: clamp(addDays(h2.anchorDate, -90)),
           priority: "medium",
           category: "visa",
@@ -546,8 +546,8 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
       if (drafts.some((d) => d.sourceOpportunityId === o.id)) return;
       drafts.push({
         templateId: `opp-${o.id}`,
-        title: `Apply to your saved role: ${o.title} — ${o.company}`,
-        description: `You saved this role. ${s.missingSkills.length ? `Address ${s.missingSkills.slice(0, 2).join(" and ")} in your cover letter or projects.` : "You match the listed skills — tailor your CV and apply."}`,
+        title: `Apply to your saved role: ${o.title} at ${o.company}`,
+        description: `You saved this role. ${s.missingSkills.length ? `Address ${s.missingSkills.slice(0, 2).join(" and ")} in your cover letter or projects.` : "You match the listed skills, so tailor your CV and apply."}`,
         deadline: o.deadline ? clamp(addDays(o.deadline, -2)) : at(10),
         priority: o.deadline && daysBetween(today, o.deadline) <= 14 ? "urgent" : "high",
         category: "applications",
@@ -594,7 +594,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     drafts.push({
       templateId: "coffee-follow-up",
       title: "Follow up once with people who haven't replied (after 7 days)",
-      description: "A short, friendly nudge is fine — then move on. Keep reaching out to new people too.",
+      description: "A short, friendly nudge is fine, then move on. Keep reaching out to new people too.",
       deadline: at(7),
       priority: "medium",
       category: "networking",
@@ -627,7 +627,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     drafts.push({
       templateId: "project-showcase",
       title: "Showcase your finished project: README, demo link, CV bullet and LinkedIn post",
-      description: "Lead with the problem, your approach, a metric and limitations — then use it as an interview story.",
+      description: "Lead with the problem, your approach, a metric and limitations, then use it as an interview story.",
       deadline: at(7),
       priority: "high",
       category: "projects",

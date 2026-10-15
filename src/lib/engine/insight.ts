@@ -48,7 +48,7 @@ export function deterministicInsight(input: InsightInput): string {
     lead =
       months <= 12
         ? `You're about ${months} months from graduation and aiming for ${goal}. Graduate recruitment runs well before graduation day, so applications are your top priority right now.`
-        : `You have about ${months} months until graduation — time to build experience for ${goal} before graduate recruitment starts.`;
+        : `You have about ${months} months until graduation: time to build experience for ${goal} before graduate recruitment starts.`;
   } else {
     lead = `You've graduated and are targeting ${goal}${f.anchor === "visa end" ? `, with roughly ${months} months until your visa end date` : ""}. Speed and consistency of applications matter most now.`;
   }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TRACK_MAP } from "@/data/careers";
+import { canonicalSkill, TRACK_MAP } from "@/data/careers";
 import { extractSkillsFromText } from "@/lib/engine/cv";
 import type { CareerTrack, Opportunity, OpportunityType } from "@/lib/types";
 
@@ -85,6 +85,18 @@ export async function GET(req: Request) {
       .filter((j) => !SENIOR.test(j.title))
       .map((j) => {
         const desc = strip(j.description);
+        const skills = extractSkillsFromText(desc).slice(0, 6);
+        // Tailored context: the listing's own sentence that mentions each skill
+        const sentencesIn = desc.split(/(?<=[.!?])\s+/);
+        const skillContext = Object.fromEntries(
+          skills
+            .map((sk) => {
+              const words = canonicalSkill(sk).split(/[ /&]+/).filter((w) => w.length > 1);
+              const hit = sentencesIn.find((x) => words.some((w) => x.toLowerCase().includes(w)));
+              return hit ? [sk, `From the listing: "${hit.trim().slice(0, 160)}${hit.length > 160 ? "…" : ""}"`] : null;
+            })
+            .filter((x): x is [string, string] => Boolean(x)),
+        );
         const predicted = String(j.salary_is_predicted ?? "0") === "1";
         const salary =
           !predicted && j.salary_min
@@ -98,9 +110,10 @@ export async function GET(req: Request) {
           location: j.location?.display_name ?? where,
           type: inferType(j.title),
           tracks: [track],
-          skillsRequired: extractSkillsFromText(desc).slice(0, 6),
+          skillsRequired: skills,
+          skillContext,
           degreeFields: [],
-          eligibility: { note: "Not verified — check the listing" },
+          eligibility: { note: "Not verified. Check the listing" },
           experienceLevel: "unknown",
           salary,
           deadline: undefined,

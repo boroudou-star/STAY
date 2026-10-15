@@ -28,7 +28,8 @@ Rules:
 - If a job description is provided, tailor questions to the competencies and responsibilities it states.
 - Do not state facts about the company (products, values, numbers, news) unless they appear in the job description. You may use the company name.
 - Mix behavioural, motivation, technical/commercial as appropriate for the industry.
-- tests: what the interviewer is assessing. tips: 1-3 short, practical tips.`;
+- tests: what the interviewer is assessing. tips: 1-3 short, practical tips.
+Do not use dashes as punctuation.`;
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));

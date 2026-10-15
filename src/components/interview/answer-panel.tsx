@@ -1,10 +1,11 @@
 "use client";
 
-import { CornerDownRight, Loader2, Mic, MicOff, Send, Timer, Volume2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, CornerDownRight, Loader2, Mic, MicOff, Quote, Send, Timer, Volume2, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Textarea } from "@/components/ui";
 import { scoreAnswer } from "@/lib/engine/interview";
-import type { AnswerFeedback, AnswerScores, InterviewQuestion } from "@/lib/types";
+import { withArticle } from "@/data/hiring-bar";
+import type { AnswerFeedback, AnswerScores, HiringVerdict, InterviewQuestion } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /* ---------------- Browser speech (optional, progressive enhancement) ---------------- */
@@ -71,7 +72,9 @@ export function useDictation(onText: (t: string) => void) {
 
 /* ---------------- Feedback ---------------- */
 
-export async function getFeedback(question: InterviewQuestion, answer: string, ctx: { role?: string; company?: string } = {}): Promise<AnswerFeedback> {
+export type FeedbackCtx = { role?: string; company?: string; track?: string };
+
+export async function getFeedback(question: InterviewQuestion, answer: string, ctx: FeedbackCtx = {}): Promise<AnswerFeedback> {
   try {
     const res = await fetch("/api/ai/interview-feedback", {
       method: "POST",
@@ -86,7 +89,7 @@ export async function getFeedback(question: InterviewQuestion, answer: string, c
   } catch {
     /* offline */
   }
-  return scoreAnswer(question, answer);
+  return scoreAnswer(question, answer, { track: ctx.track, company: ctx.company });
 }
 
 const SCORE_LABEL: Record<keyof AnswerScores, string> = {
@@ -116,27 +119,103 @@ export function ScoreBars({ scores }: { scores: AnswerScores }) {
   );
 }
 
+const VERDICT: Record<HiringVerdict, { label: string; cls: string; dot: string }> = {
+  strong_hire: { label: "Strong hire", cls: "border-teal/30 bg-teal-soft", dot: "bg-teal" },
+  hire: { label: "Hire", cls: "border-blue/30 bg-blue-soft", dot: "bg-blue" },
+  borderline: { label: "Borderline", cls: "border-sun/40 bg-sun-soft", dot: "bg-sun" },
+  no_hire: { label: "No hire", cls: "border-red-200 bg-red-50", dot: "bg-red-500" },
+};
+
 export function FeedbackView({ fb, question, showModel = true }: { fb: AnswerFeedback; question: InterviewQuestion; showModel?: boolean }) {
+  const [showRewrite, setShowRewrite] = useState(false);
+  const v = fb.verdict ? VERDICT[fb.verdict] : null;
   return (
     <div className="space-y-4">
-      <ScoreBars scores={fb.scores} />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl bg-teal-soft/60 p-4">
-          <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-teal">What worked</div>
-          <ul className="space-y-1 text-[13.5px]">{fb.strengths.length ? fb.strengths.map((s) => <li key={s}>✓ {s}</li>) : <li className="text-muted">Keep going — strengths will show as you add detail.</li>}</ul>
+      {v && (
+        <div className={cn("rounded-2xl border p-4", v.cls)}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className={cn("h-2.5 w-2.5 rounded-full", v.dot)} />
+              <span className="text-[12px] font-bold uppercase tracking-widest text-ink">Hiring decision: {v.label}</span>
+            </div>
+            {fb.field && <span className="text-[11.5px] font-medium text-ink-2">Scored against the {fb.field} hiring bar</span>}
+          </div>
+          {fb.headline && <p className="mt-2 text-[14px] font-medium leading-relaxed text-ink">{fb.headline}</p>}
         </div>
+      )}
+
+      <ScoreBars scores={fb.scores} />
+
+      {fb.notes && fb.notes.length > 0 ? (
+        <div className="rounded-2xl border border-line bg-card p-4">
+          <div className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-[#c2502f]">Interviewer&apos;s notes</div>
+          <ol className="space-y-3">
+            {fb.notes.map((n, i) => (
+              <li key={i} className="flex gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sun-soft text-[11px] font-bold text-[#c2502f]">{i + 1}</span>
+                <div className="min-w-0 text-[13.5px] leading-relaxed">
+                  {n.quote && (
+                    <div className="mb-1 flex items-start gap-1.5 border-l-2 border-sun/50 pl-2 italic text-ink-2">
+                      <Quote size={12} className="mt-1 shrink-0 text-muted" />
+                      {n.quote}
+                    </div>
+                  )}
+                  <div className="text-ink">{n.issue}</div>
+                  <div className="mt-0.5 text-teal">
+                    <span className="font-semibold">Fix: </span>
+                    {n.fix}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : (
         <div className="rounded-2xl bg-sun-soft/60 p-4">
           <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#c2502f]">To improve</div>
-          <ul className="space-y-1 text-[13.5px]">{fb.improvements.map((s) => <li key={s}>→ {s}</li>)}</ul>
+          <ul className="space-y-1 text-[13.5px]">{fb.improvements.map((s) => <li key={s}>{s}</li>)}</ul>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {fb.lens && fb.lens.length > 0 && (
+          <div className="rounded-2xl bg-paper p-4">
+            <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-muted">What {withArticle(fb.field ?? "hiring")} interviewer listens for</div>
+            <ul className="space-y-1.5 text-[13px]">
+              {fb.lens.map((l) => (
+                <li key={l.criterion} className="flex items-start gap-2">
+                  {l.met ? <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-teal" /> : <XCircle size={14} className="mt-0.5 shrink-0 text-red-500" />}
+                  <span className={cn(!l.met && "text-ink-2")}>{l.criterion}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="rounded-2xl bg-teal-soft/50 p-4">
+          <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-teal">What worked</div>
+          <ul className="space-y-1 text-[13px]">{fb.strengths.length ? fb.strengths.map((s) => <li key={s}>{s}</li>) : <li className="text-ink-2">Nothing yet that would stand out to an interviewer. Work through the notes and try again.</li>}</ul>
         </div>
       </div>
-      {showModel && question.modelPoints && (
+
+      {fb.rewrite && (
+        <div className="rounded-2xl border border-line">
+          <button onClick={() => setShowRewrite(!showRewrite)} className="flex w-full items-center justify-between px-4 py-3 text-left text-[13px] font-semibold">
+            Outline of a stronger answer (built from what you said)
+            <ChevronDown size={16} className={cn("transition-transform", showRewrite && "rotate-180")} />
+          </button>
+          {showRewrite && <pre className="whitespace-pre-wrap border-t border-line px-4 py-3 font-sans text-[13px] leading-relaxed text-ink-2">{fb.rewrite}</pre>}
+        </div>
+      )}
+
+      {showModel && question.modelPoints && !fb.rewrite && (
         <div className="rounded-2xl border border-line bg-card p-4">
           <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted">A strong answer covers</div>
           <ul className="space-y-1 text-[13.5px]">{question.modelPoints.map((m) => <li key={m}>• {m}</li>)}</ul>
         </div>
       )}
-      <p className="text-[11px] text-muted">{fb.source === "ai" ? "Feedback by AI interviewer." : "Rule-based feedback (structure, numbers, outcomes, length). Add an AI key for richer coaching."}</p>
+      <p className="text-[11px] text-muted">
+        {fb.source === "ai" ? "Scored by an AI interviewer against the hiring bar for this field." : "Scored by STAY's rules against the hiring bar for this field. Add an AI key for deeper, more nuanced critique."}
+      </p>
     </div>
   );
 }
@@ -153,7 +232,7 @@ export function AnswerPanel({
   question: InterviewQuestion;
   onFeedback: (answer: string, fb: AnswerFeedback, seconds: number) => void;
   voice?: boolean;
-  ctx?: { role?: string; company?: string };
+  ctx?: FeedbackCtx;
   submitLabel?: string;
 }) {
   const [answer, setAnswer] = useState("");
@@ -186,7 +265,7 @@ export function AnswerPanel({
     <div>
       <Textarea
         className="min-h-40 text-[14.5px]"
-        placeholder={question.kind === "behavioural" ? "Situation → Task → Action → Result. Type or use the mic…" : "Think out loud — structure first, then detail. Type or use the mic…"}
+        placeholder={question.kind === "behavioural" ? "Situation → Task → Action → Result. Type or use the mic…" : "Think out loud. Structure first, then detail. Type or use the mic…"}
         value={answer}
         onChange={(e) => setAnswer(e.target.value)}
         aria-label="Your answer"
@@ -215,7 +294,7 @@ export function AnswerPanel({
 }
 
 /** Practise one question: answer → feedback → optional follow-up probe. */
-export function PracticeQuestion({ question, ctx, onDone }: { question: InterviewQuestion; ctx?: { role?: string; company?: string }; onDone?: (answer: string, fb: AnswerFeedback) => void }) {
+export function PracticeQuestion({ question, ctx, onDone }: { question: InterviewQuestion; ctx?: FeedbackCtx; onDone?: (answer: string, fb: AnswerFeedback) => void }) {
   const [result, setResult] = useState<{ answer: string; fb: AnswerFeedback } | null>(null);
   const [probe, setProbe] = useState<{ answer: string; fb: AnswerFeedback } | null>(null);
   const [attempt, setAttempt] = useState(0);

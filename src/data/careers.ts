@@ -165,7 +165,10 @@ export const SKILL_ALIASES: Record<string, string[]> = {
   pandas: ["pandas", "numpy", "dataframes"],
   "experiment design": ["a/b testing", "experiment design", "experimentation"],
   communication: ["communication", "presenting", "public speaking"],
-  excel: ["excel", "spreadsheets"],
+  excel: ["excel", "spreadsheets", "excel modelling", "excel modeling"],
+  "structured problem solving": ["structured problem solving", "problem solving", "case interviews"],
+  "client communication": ["client communication", "stakeholder management"],
+  "powerpoint storytelling": ["powerpoint", "powerpoint storytelling", "slides"],
   r: ["r", "rstudio", "tidyverse"],
 };
 
@@ -189,7 +192,7 @@ export const SKILL_GUIDES: Record<string, SkillGuide> = {
     learn: ["Work through the official PyTorch beginner tutorials", "Re-implement one small model from a paper you've studied"],
   },
   "model evaluation": {
-    why: "Interviewers ask how you know a model works — not just that it trains.",
+    why: "Interviewers ask how you know a model works, not just that it trains.",
     learn: ["Practise train/validation/test splits and cross-validation", "Write up precision/recall trade-offs for one of your projects"],
   },
   deployment: {

@@ -16,12 +16,13 @@ const Out = z.object({
 });
 
 const SYSTEM = `You organise a student's own industry reflections into an "insight profile" they can use in interviews.
-Use ONLY ideas present in their entries — do not add facts, companies, statistics or opinions they didn't express.
+Use ONLY ideas present in their entries, do not add facts, companies, statistics or opinions they didn't express.
 Return JSON:
 - pointOfView: 3-4 sentences in second person summarising the views they've expressed.
 - themes: up to 5 recurring themes in their thinking.
 - gaps: up to 3 areas they haven't explored yet that would strengthen their perspective (phrase as suggestions, not facts).
-- talkingPoints: up to 3 interview-ready talking points, each rephrasing one of THEIR own arguments.`;
+- talkingPoints: up to 3 interview-ready talking points, each rephrasing one of THEIR own arguments.
+Do not use dashes as punctuation.`;
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));

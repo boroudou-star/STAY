@@ -12,7 +12,7 @@ const FEATURES = [
   {
     icon: Map,
     title: "A roadmap that knows recruitment season",
-    body: "Month-by-month plan built around when UK applications actually open and close — not just your graduation day.",
+    body: "Month-by-month plan built around when UK applications actually open and close, not just your graduation day.",
     tone: "bg-teal-soft text-teal",
     span: "md:col-span-2",
   },
@@ -24,11 +24,11 @@ const FEATURES = [
     tone: "bg-violet-soft text-violet",
     span: "",
   },
-  { icon: Coffee, title: "5 coffee chats, ready to send", body: "Targeted alumni searches and editable outreach drafts. You hit send — never us.", tone: "bg-sun-soft text-[#c2502f]", span: "" },
+  { icon: Coffee, title: "5 coffee chats, ready to send", body: "Targeted alumni searches and editable outreach drafts. You hit send, never us.", tone: "bg-sun-soft text-[#c2502f]", span: "" },
   {
     icon: ShieldCheck,
     title: "Visa-aware, never visa-guessing",
-    body: "Plans around Graduate route timelines and sponsorship — clearly labelled as general info, with links to GOV.UK.",
+    body: "Plans around Graduate route timelines and sponsorship, clearly labelled as general info, with links to GOV.UK.",
     tone: "bg-lime/50 text-ink",
     span: "",
   },
@@ -76,7 +76,7 @@ export default function Landing() {
             </h1>
             <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-ink-2">
               Most job boards show you what&apos;s open today. STAY shows you what to do <em className="font-semibold not-italic text-ink">today</em> to land the role you
-              want tomorrow — roadmap, opportunities, campus events and coffee chats in one place.
+              want tomorrow: roadmap, opportunities, campus events and coffee chats in one place.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <button onClick={tryDemo} className={buttonClass("primary", "lg")}>
@@ -97,7 +97,7 @@ export default function Landing() {
       <section className="mx-auto max-w-6xl px-5 py-16 md:py-20">
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            ["Sep → Jan", "when many UK graduate schemes recruit — often 9+ months before you graduate."],
+            ["Sep → Jan", "when many UK graduate schemes recruit, often 9+ months before you graduate."],
             ["18 months", "Graduate visa window for applications made from 1 Jan 2027 (bachelor's & master's)."],
             ["1 plan", "that connects skills, applications, events and people."],
           ].map(([big, small], i) => (
@@ -108,9 +108,9 @@ export default function Landing() {
           ))}
         </div>
         <p className="mt-6 text-[12px] text-muted">
-          Graduate route figure: UK Home Office rules confirmed Oct 2025; PhD graduates keep 3 years. General information only —{" "}
+          Graduate route figure: UK Home Office rules confirmed Oct 2025; PhD graduates keep 3 years. General information only.{" "}
           <a className="underline" href="https://www.gov.uk/graduate-visa" target="_blank" rel="noopener noreferrer">
-            check GOV.UK
+            Check GOV.UK
           </a>
           .
         </p>
@@ -133,7 +133,7 @@ export default function Landing() {
             <Sparkles className="text-lime" />
             <div>
               <h3 className="mt-6 font-display text-xl font-semibold">See it with a real-feeling profile</h3>
-              <p className="mt-2 text-[14px] text-white/70">Alex — final-year CS at UCL, interested in AI, needs sponsorship eventually. (Fictional.)</p>
+              <p className="mt-2 text-[14px] text-white/70">Alex, final-year CS at UCL, interested in AI, needs sponsorship eventually. (Fictional.)</p>
               <button onClick={tryDemo} className={buttonClass("lime", "md", "mt-5")}>
                 Load Alex&apos;s demo <ArrowRight size={16} />
               </button>
@@ -148,7 +148,7 @@ export default function Landing() {
           {[
             ["01", "Tell us where you are", "Studying or graduated, your goals, skills and (optionally) visa situation."],
             ["02", "Get your map", "A personalised timeline with this week's three moves, scored opportunities and events."],
-            ["03", "Move and adapt", "Tick things off, change direction — STAY rebuilds the plan and keeps your progress."],
+            ["03", "Move and adapt", "Tick things off, change direction. STAY rebuilds the plan and keeps your progress."],
           ].map(([n, t, b]) => (
             <div key={n}>
               <div className="font-display text-sm font-bold text-teal">{n}</div>

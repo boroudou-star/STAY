@@ -57,17 +57,24 @@ Needs access to integrate later: Adzuna keys (code ready), other job APIs (e.g. 
 
 - Follow up to 4 **areas** (AI, tech, data, consulting, investment banking, markets & fintech, healthcare, biotech, marketing, energy, public sector) and up to 4 **target companies**.
 - **Today**: live news (Google News RSS, UK edition, last 7 days — headlines and links only) and podcasts (Apple iTunes Search API), plus a STAY-written primer and 3 daily questions.
-- **Reflect**: answer a question → saved to your notebook → coach feedback (AI, or rule-based checks: a view, evidence, the "so what", depth) → one follow-up question to go deeper.
+- **Guided reflection**: every question is broken into 3 to 5 small steps (e.g. for news: what happened, who is affected, why now, your view, an interview line; for companies: customers, what they buy, how they pay, why they stay). Saved to your notebook with coach feedback and one follow-up question.
+- **Reading notes** (`/insights/notes/[id]`): clicking a story or podcast opens it in a new tab and a notes page in STAY (summary, facts, who is involved, questions, my take). "Reflect on this" turns the notes into a guided reflection, pre-filled from what you wrote.
 - **7-day plan**: basics → business models → key players → news → risks → target-company deep-dive → your point of view.
 - **Notebook & insight profile**: searchable entries by area/company, recurring themes, company dossiers, readiness score, and "Organise my thinking" (AI summarises only your own words into a point of view and interview talking points).
 
 ## Interview Prep (`/interview`)
 
 - **Question bank**: behavioural (by competency), motivation, technical for your field, and company questions — including one built on a real recent headline about the company. "Tailor" generates likely questions from a pasted job description (AI).
-- **Mock interview**: mixed / behavioural / company / CV / technical; timer, interviewer voice (speech synthesis), answer by voice (Chrome/Edge speech recognition) or typing; scored feedback (structure, specificity, impact, relevance, concision) + a follow-up probe; summary saved to History.
+- **Mock interview**: mixed / behavioural / company / CV / technical; timer, interviewer voice (speech synthesis), answer by voice (Chrome/Edge speech recognition) or typing; summary saved to History.
+- **Recruiter-grade feedback** (`src/data/hiring-bar.ts`, `scoreAnswer` in `src/lib/engine/interview.ts`): a hiring decision (no hire / borderline / hire / strong hire), scored against the hiring bar of the chosen field (consulting, investment banking, software, AI/ML, data, research, marketing, engineering, general). Numbered interviewer notes quote the candidate's exact words with a concrete fix, a checklist of what that field's interviewers listen for, a stronger-answer outline built from the candidate's own material, and a field-specific follow-up probe. Calibrated strictly: most first attempts land borderline or no hire.
 - **Your CV**: questions generated only from your own profile/CV text.
 - **Case practice** (consulting): 3 fictional cases — clarify → structure → analysis with exhibits → recommendation, with an interviewer chat (AI, or scripted) and coverage of what a strong answer includes.
 - **Story bank**: STAR stories with competency coverage and rehearsal.
+
+## Skills and resources
+
+- Every demo opportunity explains what each skill is used for in that specific role and what you'd do day to day (`ROLE_DETAILS` in `src/data/opportunities.ts`). Live listings quote the listing's own sentence for each skill.
+- Skill gaps link to checked learning resources (`src/data/resources.ts`): courses and programmes (Coursera, Harvard CS50, fast.ai, Kaggle, Udacity), practice sites, YouTube channels and playlists, GitHub repos, and a STAY one-day project brief with a CV line. Search links for Coursera, YouTube and GitHub cover everything else. Shown on the Skills page, in "Why X%?" on opportunities, and linked from skill tasks on the roadmap.
 
 ## How the pieces are linked
 

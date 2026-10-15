@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { TRACK_MAP } from "@/data/careers";
 import { Badge, Button, Card, EmptyState, PageHeader, ProgressRing } from "@/components/ui";
+import { ResourceList } from "@/components/resource-list";
 import { displaySkill } from "@/lib/engine/skills";
 import { useDerived } from "@/lib/hooks";
 import { useStay } from "@/lib/store";
@@ -25,7 +26,7 @@ export default function SkillsPage() {
       <PageHeader
         eyebrow="Skills analysis"
         title={`Ready for ${skills.targetRole}?`}
-        description={`Compared with skills commonly asked for in ${p.careerGoals.map((g) => TRACK_MAP[g].noun).join(", ")} roles. Based only on skills you've told us about or mentioned in your experience — nothing inferred.`}
+        description={`Compared with skills commonly asked for in ${p.careerGoals.map((g) => TRACK_MAP[g].noun).join(", ")} roles. Based only on skills you've told us about or mentioned in your experience, nothing inferred.`}
       />
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -69,7 +70,7 @@ export default function SkillsPage() {
           )}
           {skills.basicStrengths.length > 0 && (
             <p className="mt-3 text-[12.5px] text-muted">
-              You described {skills.basicStrengths.map((s) => s.label.toLowerCase()).join(" and ")} as basic — deepening these is a quick win for assessments.
+              You described {skills.basicStrengths.map((s) => s.label.toLowerCase()).join(" and ")} as basic. Deepening these is a quick win for assessments.
             </p>
           )}
         </Card>
@@ -83,7 +84,8 @@ export default function SkillsPage() {
           {[...core, ...nice].map((g) => {
             const added = inRoadmap(`skill-${g.canonical}`, g.canonical);
             return (
-              <Card key={g.canonical} className="p-5">
+              <Card key={g.canonical} className="scroll-mt-24 p-5">
+                <span id={`skill-${g.canonical.replace(/[^a-z0-9]+/g, "-")}`} className="block scroll-mt-24" />
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
@@ -118,13 +120,22 @@ export default function SkillsPage() {
                     </li>
                   ))}
                 </ul>
+                <div className="mt-4 mb-2 text-[12px] font-semibold uppercase tracking-widest text-muted">Learn it</div>
+                <ResourceList
+                  skill={displaySkill(g.canonical)}
+                  compact
+                  onAddProject={(title, description) => {
+                    const ok = addSkillTask({ key: `proj-day-${g.canonical}`, title: `One-day project: ${title}`, description, skill: displaySkill(g.canonical), days: 10, category: "projects" });
+                    toast[ok ? "success" : "info"](ok ? "Project added to your roadmap" : "Already in your roadmap");
+                  }}
+                />
                 <div className="mt-3 text-[11.5px] text-muted">Needed for: {g.tracks.map((t) => TRACK_MAP[t].label).join(", ")}</div>
               </Card>
             );
           })}
         </div>
       ) : (
-        <EmptyState title="No gaps against the core skills list" body="Great — focus on depth: projects with measurable results and interview practice." />
+        <EmptyState title="No gaps against the core skills list" body="Great. Focus on depth: projects with measurable results and interview practice." />
       )}
 
       <h2 className="mb-3 mt-8 flex items-center gap-2 font-display text-xl font-semibold">

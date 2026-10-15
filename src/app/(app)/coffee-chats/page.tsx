@@ -73,7 +73,7 @@ export default function CoffeeChatsPage() {
           <h3 className="mt-3 font-display text-xl font-semibold">How to make it land</h3>
           <ul className="mt-3 space-y-1.5 text-[13.5px] text-white/80">
             <li>• Keep it under 300 characters for LinkedIn connection notes.</li>
-            <li>• Mention one specific thing from their profile — only what you&apos;ve actually read.</li>
+            <li>• Mention one specific thing from their profile, and only what you&apos;ve actually read.</li>
             <li>• Ask for 15 minutes, not a job or a referral.</li>
             <li>• Follow up once after a week, then let it go.</li>
           </ul>
@@ -112,7 +112,7 @@ function StatusSelect({ id }: { id: string }) {
       value={status}
       onChange={(e) => {
         showEffects(setContact(id, { status: e.target.value as ContactStatus }));
-        if (e.target.value === "completed") toast.success("Chat completed ☕ — log what you learned in Notes");
+        if (e.target.value === "completed") toast.success("Chat completed ☕ Now log what you learned in Notes");
       }}
       className={cn("h-8 w-auto rounded-full border-0 py-0 pl-3 pr-8 text-[12px] font-semibold", STATUS_TONE[status])}
     >
@@ -134,7 +134,7 @@ function RecCard({ n, rec, onCompose, onAddPerson, onNotes }: { n: number; rec: 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge tone="blue">
-              <Search size={10} /> Targeted search — not a specific person
+              <Search size={10} /> Targeted search, not a specific person
             </Badge>
             {rec.universityConnection && <Badge tone="teal">🎓 {rec.universityConnection}</Badge>}
           </div>
@@ -241,10 +241,10 @@ function ComposeModal({ rec, contact, trackId, onClose }: { rec: NetworkingRecom
       const data = (await res.json()) as { text?: string; source?: string; message?: string };
       if (data.source === "ai" && data.text) {
         setText(data.text);
-        toast.success("Polished with AI — check it sounds like you");
-      } else toast.info(data.message ?? "AI isn't configured — the template is ready to edit");
+        toast.success("Polished with AI. Check it sounds like you");
+      } else toast.info(data.message ?? "AI isn't configured, the template is ready to edit");
     } catch {
-      toast.error("Couldn't reach AI — your draft is unchanged");
+      toast.error("Couldn't reach AI. Your draft is unchanged");
     }
     setPolishing(false);
   };
@@ -262,7 +262,7 @@ function ComposeModal({ rec, contact, trackId, onClose }: { rec: NetworkingRecom
     }
     setCopied(true);
     setContact(trackId, { draft: text, status: "message_drafted" });
-    toast.success("Copied — paste it into LinkedIn yourself");
+    toast.success("Copied. Paste it into LinkedIn yourself");
     setTimeout(() => setCopied(false), 1800);
   };
 
@@ -275,7 +275,7 @@ function ComposeModal({ rec, contact, trackId, onClose }: { rec: NetworkingRecom
       )}
       <Textarea value={text} onChange={(e) => setText(e.target.value)} className="min-h-44 text-[14.5px]" aria-label="Message draft" />
       <div className={cn("mt-1 text-right text-[12px]", text.length > 300 ? "text-[#c2502f]" : "text-muted")}>
-        {text.length} characters{text.length > 300 ? " — over LinkedIn's connection-note limit; trim or send as a message" : ""}
+        {text.length} characters{text.length > 300 ? " (over LinkedIn's limit for connection notes, so trim it or send it as a message)" : ""}
       </div>
       <div className="mt-4 flex flex-wrap justify-between gap-2">
         <div className="flex gap-2">
@@ -348,7 +348,7 @@ function AddContactModal({ rec, onClose }: { rec: NetworkingRecommendation | nul
             onClick={() => {
               if (!name.trim() || !role.trim()) return toast.error("Name and role are needed");
               addUserContact({ name: name.trim(), role: role.trim(), company: company.trim(), profileUrl: profileUrl.trim() || undefined, background: background.trim() || undefined });
-              toast.success(`${name} added — generate a message next`);
+              toast.success(`${name} added. Generate a message next`);
               onClose();
             }}
           >

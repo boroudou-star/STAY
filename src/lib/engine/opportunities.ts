@@ -86,9 +86,9 @@ function degreeMatches(o: Opportunity, p: UserProfile) {
   if (!fields.length) return { score: 0.6, detail: "Degree requirements not verified", unknown: true };
   if (fields.includes("any")) return { score: 1, detail: "Open to any degree" };
   const deg = `${p.degree} ${p.subjectArea}`.toLowerCase();
-  if (fields.some((f) => f !== "any stem" && deg.includes(f.replace(/s$/, "")))) return { score: 1, detail: `Asks for ${o.degreeFields.join(", ")} — matches your degree` };
+  if (fields.some((f) => f !== "any stem" && deg.includes(f.replace(/s$/, "")))) return { score: 1, detail: `Asks for ${o.degreeFields.join(", ")}, which matches your degree` };
   const stem = /(computer|math|physics|engineer|science|statistic|biolog|chemi|data|bioinf|econom)/.test(deg);
-  if (fields.includes("any stem") && stem) return { score: 0.85, detail: "Open to STEM degrees — yours qualifies" };
+  if (fields.includes("any stem") && stem) return { score: 0.85, detail: "Open to STEM degrees, and yours qualifies" };
   return { score: 0.35, detail: `Prefers ${o.degreeFields.join(", ")}` };
 }
 
@@ -126,8 +126,8 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
     score: skillScore,
     status: !o.skillsRequired.length ? "unknown" : skillScore >= 0.75 ? "good" : skillScore >= 0.4 ? "partial" : "gap",
     detail: o.skillsRequired.length
-      ? `You've shown ${matched.length} of ${o.skillsRequired.length} ${fromDesc ? "skills mentioned in the listing" : "listed skills"}${missing.length ? ` — missing ${missing.join(", ")}` : ""}`
-      : "No specific skills found in the listing — not verified",
+      ? `You've shown ${matched.length} of ${o.skillsRequired.length} ${fromDesc ? "skills mentioned in the listing" : "listed skills"}${missing.length ? `, missing ${missing.join(", ")}` : ""}`
+      : "No specific skills found in the listing, not verified",
   });
 
   // Degree
@@ -141,7 +141,7 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
   let expDetail = "No prior experience required";
   if (o.experienceLevel === "some") {
     expScore = hasExp ? 1 : hasProjects ? 0.6 : 0.3;
-    expDetail = hasExp ? "Asks for some experience — you have relevant experience" : hasProjects ? "Asks for some experience — your projects partly cover this" : "Asks for some experience you haven't listed yet";
+    expDetail = hasExp ? "Asks for some experience, and you have relevant experience" : hasProjects ? "Asks for some experience, and your projects partly cover this" : "Asks for some experience you haven't listed yet";
   } else if (o.experienceLevel === "unknown") {
     expScore = 0.6;
     expDetail = "Experience requirements not verified";
@@ -162,7 +162,7 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
     weight: WEIGHTS.location,
     score: locScore,
     status: locScore >= 0.8 ? "good" : locScore >= 0.5 ? "partial" : "gap",
-    detail: locMatch ? `${o.location} fits your preferences` : p.willingToRelocate ? `${o.location} — you're open to relocating` : `${o.location} isn't in your preferred locations`,
+    detail: locMatch ? `${o.location} fits your preferences` : p.willingToRelocate ? `${o.location}, but you're open to relocating` : `${o.location} isn't in your preferred locations`,
   });
 
   // Graduation eligibility
@@ -177,7 +177,7 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
     gradScore = eligible ? 1 : 0;
     gradDetail = eligible
       ? `Your graduation (${grad}) fits: ${o.eligibility.note}`
-      : `Likely not eligible — ${o.eligibility.note}; you graduate ${grad}`;
+      : `Likely not eligible: ${o.eligibility.note}; you graduate ${grad}`;
   }
   factors.push({
     key: "graduation",
@@ -199,11 +199,11 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
     } else if (o.sponsorshipStatus === "not_offered") {
       visaScore = 0.25;
       visaStatus = "gap";
-      visaDetail = "Listing says no sponsorship — may still be possible while on a Graduate visa, but not long-term";
+      visaDetail = "Listing says no sponsorship. Work may still be possible on a Graduate visa, but not long term";
     } else {
       visaScore = 0.55;
       visaStatus = "unknown";
-      visaDetail = "Sponsorship not verified — ask the employer directly";
+      visaDetail = "Sponsorship not verified. Ask the employer directly";
     }
   }
   factors.push({ key: "visa", label: "Visa / sponsorship", weight: WEIGHTS.visa, score: visaScore, status: visaStatus, detail: visaDetail });
@@ -221,7 +221,7 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
     } else {
       dlScore = 1;
       dlStatus = d <= 14 ? "partial" : "good";
-      dlDetail = d <= 14 ? `Closes in ${d} days — act soon` : `Closes in ${d} days`;
+      dlDetail = d <= 14 ? `Closes in ${d} days, act soon` : `Closes in ${d} days`;
     }
   }
   factors.push({ key: "deadline", label: "Application deadline", weight: WEIGHTS.deadline, score: dlScore, status: dlStatus, detail: dlDetail });
@@ -249,7 +249,7 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
       weight: 0.04,
       score: !known ? 0.6 : hit ? 1 : 0.4,
       status: !known ? "unknown" : hit ? "good" : "partial",
-      detail: !known ? "Company type not verified" : hit ? `${o.companyType} — matches your preference` : `${o.companyType} — not one of your preferred company types`,
+      detail: !known ? "Company type not verified" : hit ? `${o.companyType}, matches your preference` : `${o.companyType}, not one of your preferred company types`,
     });
   }
   const salaryNum = parseSalary(o.salary);

@@ -8,7 +8,7 @@ import { activityStats, AUTO_COMPLETE_RULES } from "@/lib/engine/roadmap";
 import { canonicalSkill } from "@/data/careers";
 import { buildRoadmap } from "@/lib/services/catalog";
 import { stayStorage, STORAGE_KEY } from "@/lib/persistence";
-import type { Activity, CareerEvent, ContactTracking, InsightEntry, InsightPrefs, MockSession, StoryEntry, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
+import type { Activity, CareerEvent, ContactTracking, FeedItem, InsightEntry, InsightPrefs, MockSession, ReadingNote, StoryEntry, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
 import { addDays, daysBetween, todayISO, uid } from "@/lib/utils";
 
 export interface ChangeSummary {
@@ -52,6 +52,7 @@ interface StayState {
   /** Industry insights */
   insightPrefs: InsightPrefs | null;
   journal: InsightEntry[];
+  readingNotes: ReadingNote[];
   /** Interview prep */
   mockSessions: MockSession[];
   stories: StoryEntry[];
@@ -60,6 +61,9 @@ interface StayState {
   setInterviewCompany: (c: string) => void;
 
   setInsightPrefs: (patch: Partial<InsightPrefs>) => void;
+  startReadingNote: (item: FeedItem) => string;
+  updateReadingNote: (id: string, patch: Partial<Pick<ReadingNote, "sections" | "reflectedEntryId">>) => void;
+  deleteReadingNote: (id: string) => void;
   addInsightEntry: (e: Omit<InsightEntry, "id" | "createdAt">) => { id: string; effects: Effects };
   updateInsightEntry: (id: string, patch: Partial<InsightEntry>) => void;
   deleteInsightEntry: (id: string) => void;
@@ -113,6 +117,7 @@ const initial = {
   skillsFromTasks: {} as Record<string, string>,
   insightPrefs: null as InsightPrefs | null,
   journal: [] as InsightEntry[],
+  readingNotes: [] as ReadingNote[],
   mockSessions: [] as MockSession[],
   stories: [] as StoryEntry[],
   interviewCompany: "",
@@ -263,10 +268,10 @@ export const useStay = create<StayState>()(
             ...s.tasks.filter((t) => !(t.origin === "engine" && t.sourceOpportunityId === o.id && t.status === "todo")),
             {
               id: uid("t"),
-              title: `Apply: ${o.title} — ${o.company}`,
+              title: `Apply: ${o.title} at ${o.company}`,
               description: o.deadline
                 ? `Closing date ${o.isDemo ? "(example) " : ""}${o.deadline}. Tailor your CV to: ${o.skillsRequired.join(", ")}.`
-                : `Deadline not verified — check the listing. Tailor your CV to: ${o.skillsRequired.join(", ")}.`,
+                : `Deadline not verified. Check the listing. Tailor your CV to: ${o.skillsRequired.join(", ")}.`,
               deadline,
               priority: o.deadline && daysBetween(today, o.deadline) <= 14 ? "urgent" : "high",
               category: "applications",
@@ -359,6 +364,28 @@ export const useStay = create<StayState>()(
       setInsight: (i) => set({ insight: i }),
 
       setInterviewCompany: (c) => set({ interviewCompany: c }),
+      startReadingNote: (item) => {
+        const existing = get().readingNotes.find((n) => n.item.id === item.id || (item.url && n.item.url === item.url));
+        if (existing) return existing.id;
+        const id = uid("note");
+        const now = new Date().toISOString();
+        const note: ReadingNote = {
+          id,
+          item: { id: item.id, title: item.title, url: item.url, source: item.source, kind: item.kind, area: item.area, company: item.company },
+          sections: {},
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((s) => ({ readingNotes: [note, ...s.readingNotes] }));
+        return id;
+      },
+      updateReadingNote: (id, patch) =>
+        set((s) => ({
+          readingNotes: s.readingNotes.map((n) =>
+            n.id === id ? { ...n, ...patch, sections: { ...n.sections, ...(patch.sections ?? {}) }, updatedAt: new Date().toISOString() } : n,
+          ),
+        })),
+      deleteReadingNote: (id) => set((s) => ({ readingNotes: s.readingNotes.filter((n) => n.id !== id) })),
       setInsightPrefs: (patch) =>
         set((s) => ({ insightPrefs: { areas: [], companies: [], planDone: [], ...(s.insightPrefs ?? {}), ...patch } })),
       addInsightEntry: (e) => {

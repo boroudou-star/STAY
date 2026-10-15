@@ -11,14 +11,14 @@ export const COMPETENCIES = ["Teamwork", "Leadership", "Problem solving", "Resil
 type Q = Omit<InterviewQuestion, "source">;
 
 export const BEHAVIOURAL: Q[] = [
-  { id: "b-team", kind: "behavioural", competency: "Teamwork", text: "Tell me about a time you worked in a team to achieve a difficult goal.", tests: "Collaboration, your specific role, handling different working styles", tips: ["Make your own contribution clear — say 'I', not only 'we'", "Mention how you handled a disagreement or a slow teammate"] },
+  { id: "b-team", kind: "behavioural", competency: "Teamwork", text: "Tell me about a time you worked in a team to achieve a difficult goal.", tests: "Collaboration, your specific role, handling different working styles", tips: ["Make your own contribution clear: say 'I', not only 'we'", "Mention how you handled a disagreement or a slow teammate"] },
   { id: "b-conflict", kind: "behavioural", competency: "Teamwork", text: "Describe a time you disagreed with someone. How did you handle it?", tests: "Maturity, listening, finding a resolution", tips: ["Show you understood their view", "End with the outcome and the relationship afterwards"] },
-  { id: "b-lead", kind: "behavioural", competency: "Leadership", text: "Give an example of when you took the lead on something.", tests: "Ownership, motivating others, decision-making", tips: ["Leadership doesn't need a title — a project or society role works", "Explain one decision you made and why"] },
+  { id: "b-lead", kind: "behavioural", competency: "Leadership", text: "Give an example of when you took the lead on something.", tests: "Ownership, motivating others, decision-making", tips: ["Leadership doesn't need a title. A project or society role works.", "Explain one decision you made and why"] },
   { id: "b-problem", kind: "behavioural", competency: "Problem solving", text: "Tell me about a complex problem you solved.", tests: "Structure, analysis, creativity", tips: ["Walk through how you broke the problem down", "Quantify the result if you can"] },
   { id: "b-fail", kind: "behavioural", competency: "Resilience", text: "Tell me about a time you failed or something didn't go to plan.", tests: "Self-awareness, learning, honesty", tips: ["Pick a real failure, not a disguised strength", "Spend most of your time on what you learned and changed"] },
   { id: "b-pressure", kind: "behavioural", competency: "Resilience", text: "Describe a time you had several deadlines at once. How did you prioritise?", tests: "Prioritisation, time management, calm under pressure", tips: ["Explain your prioritisation logic", "Mention communicating with stakeholders"] },
   { id: "b-explain", kind: "behavioural", competency: "Communication", text: "Tell me about a time you explained something complex to a non-expert.", tests: "Clarity, empathy for the audience", tips: ["Show how you checked they understood", "A technical project explained to a friend or client is perfect"] },
-  { id: "b-initiative", kind: "behavioural", competency: "Initiative", text: "Give an example of when you went beyond what was expected.", tests: "Proactivity, ownership", tips: ["Why did you do it — what did you notice others didn't?", "What happened because of it?"] },
+  { id: "b-initiative", kind: "behavioural", competency: "Initiative", text: "Give an example of when you went beyond what was expected.", tests: "Proactivity, ownership", tips: ["Why did you do it? What did you notice others didn't?", "What happened because of it?"] },
   { id: "b-influence", kind: "behavioural", competency: "Influencing", text: "Tell me about a time you persuaded someone to change their mind.", tests: "Influence through evidence and empathy", tips: ["Show you used evidence, not just persistence", "Mention how you adapted to their concerns"] },
   { id: "b-learn", kind: "behavioural", competency: "Learning agility", text: "Tell me about a time you had to learn something new quickly.", tests: "Learning approach, adaptability", tips: ["Describe how you learned, not just that you did", "Great place to mention a new tool or language"] },
   { id: "b-feedback", kind: "behavioural", competency: "Learning agility", text: "Describe a time you received difficult feedback. What did you do with it?", tests: "Coachability, self-reflection", tips: ["Show a concrete change you made afterwards"] },
@@ -28,10 +28,10 @@ export const BEHAVIOURAL: Q[] = [
 
 export const MOTIVATION: Q[] = [
   { id: "m-why-role", kind: "motivation", text: "Why do you want to work as a {role}?", tests: "Genuine motivation and understanding of the role", tips: ["Link a specific experience to what the job involves day to day", "Show you know what the role is actually like"] },
-  { id: "m-why-industry", kind: "motivation", text: "Why {industry}?", tests: "Commercial awareness and motivation", tips: ["Use your Insights notebook — mention one trend you've followed", "Avoid generic answers like 'it's fast-paced'"] },
+  { id: "m-why-industry", kind: "motivation", text: "Why {industry}?", tests: "Commercial awareness and motivation", tips: ["Use your Insights notebook: mention one trend you've followed", "Avoid generic answers like 'it's fast-paced'"] },
   { id: "m-yourself", kind: "motivation", text: "Walk me through your CV / tell me about yourself.", tests: "Concise narrative, relevance", tips: ["Aim for 90 seconds: past → present → why this role", "Pick 2–3 highlights, not everything"] },
   { id: "m-5y", kind: "motivation", text: "Where do you see yourself in five years?", tests: "Ambition, realism, fit with the career path", tips: ["Tie it to skills you'll build in this role"] },
-  { id: "m-strength", kind: "motivation", text: "What's your greatest strength — and a weakness you're working on?", tests: "Self-awareness", tips: ["Back the strength with evidence", "Pick a real weakness with an improvement plan"] },
+  { id: "m-strength", kind: "motivation", text: "What's your greatest strength, and a weakness you're working on?", tests: "Self-awareness", tips: ["Back the strength with evidence", "Pick a real weakness with an improvement plan"] },
   { id: "m-questions", kind: "motivation", text: "Do you have any questions for us?", tests: "Curiosity and preparation", tips: ["Ask about the team's work, how success is measured, or something from recent news"] },
 ];
 
@@ -48,7 +48,7 @@ export const TECHNICAL: Record<string, Q[]> = {
     { id: "t-ai-overfit", kind: "technical", text: "What is overfitting, and how do you detect and prevent it?", modelPoints: ["Model fits noise in training data and generalises poorly", "Detect with a validation/test gap or cross-validation", "Prevent with more data, regularisation, simpler models, early stopping, augmentation"] },
     { id: "t-ai-metric", kind: "technical", text: "When would you use precision/recall instead of accuracy?", modelPoints: ["Imbalanced classes make accuracy misleading", "Precision: cost of false positives; recall: cost of false negatives", "F1 or PR-AUC to summarise; pick by business cost"] },
     { id: "t-ai-eval", kind: "technical", text: "How would you evaluate a model before shipping it to users?", modelPoints: ["Held-out test set that matches production data", "Error analysis by segment", "Baselines and offline metrics tied to the goal", "Monitoring and a rollback plan after launch"] },
-    { id: "t-ai-project", kind: "technical", text: "Walk me through an ML project end to end — data to deployment.", modelPoints: ["Problem framing and success metric", "Data collection, cleaning, leakage checks", "Model choice and evaluation", "Deployment, monitoring, iteration"] },
+    { id: "t-ai-project", kind: "technical", text: "Walk me through an ML project end to end, from data to deployment.", modelPoints: ["Problem framing and success metric", "Data collection, cleaning, leakage checks", "Model choice and evaluation", "Deployment, monitoring, iteration"] },
   ],
   software: [
     { id: "t-sw-complexity", kind: "technical", text: "Explain time complexity and give an example of improving an algorithm.", modelPoints: ["Big-O describes growth with input size", "Example: nested loop O(n²) → hash map O(n)", "Mention space/time trade-off"] },
@@ -153,7 +153,7 @@ export const CASES: CaseStudy[] = [
           ],
         },
         info: "BeanBox sells about 10 million cups a year.",
-        goodAnswer: ["Bean cost up £0.15/cup (+50%) — the biggest change", "Total cost per cup up ~£0.20 while price is flat", "~£0.20 × 10m cups ≈ £2m lower profit per year", "Bean cost explains most of the decline"],
+        goodAnswer: ["Bean cost up £0.15/cup (+50%), the biggest change", "Total cost per cup up ~£0.20 while price is flat", "~£0.20 × 10m cups ≈ £2m lower profit per year", "Bean cost explains most of the decline"],
       },
       {
         id: "recommend",
@@ -198,13 +198,13 @@ export const CASES: CaseStudy[] = [
             ["Scooter purchase cost (2-year life)", "£1,000"],
           ],
         },
-        goodAnswer: ["Revenue = 4 × £3 × 300 = £3,600/year", "Costs = £2,400 + £500 depreciation = £2,900/year", "Profit ≈ £700/scooter/year → breaks even", "Sensitive to rides per day — 3 rides/day would be roughly break-even"],
+        goodAnswer: ["Revenue = 4 × £3 × 300 = £3,600/year", "Costs = £2,400 + £500 depreciation = £2,900/year", "Profit ≈ £700/scooter/year → breaks even", "Sensitive to rides per day: at 3 rides/day it is roughly break-even"],
       },
       {
         id: "recommend",
         title: "Recommendation",
         prompt: "What's your recommendation?",
-        goodAnswer: ["Enter if a licence is achievable — unit economics positive at 4 rides/day", "Differentiate (safety, pricing, partnerships with universities/employers)", "Risks: regulation changes, competitor price war, utilisation", "Pilot in high-density areas first"],
+        goodAnswer: ["Enter if a licence is achievable: unit economics are positive at 4 rides/day", "Differentiate (safety, pricing, partnerships with universities/employers)", "Risks: regulation changes, competitor price war, utilisation", "Pilot in high-density areas first"],
       },
     ],
   },
