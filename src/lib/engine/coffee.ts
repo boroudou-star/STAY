@@ -1,4 +1,4 @@
-import { roleForTrack, TRACK_MAP } from "@/data/careers";
+import { roleForTrack, TRACK_MAP, UNIVERSITY_LINKEDIN } from "@/data/careers";
 import type { CareerTrack, NetworkingRecommendation, UserContact, UserProfile } from "@/lib/types";
 
 /**
@@ -10,6 +10,13 @@ import type { CareerTrack, NetworkingRecommendation, UserContact, UserProfile } 
 
 export function linkedInPeopleSearch(keywords: string) {
   return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(keywords)}&origin=GLOBAL_SEARCH_HEADER`;
+}
+
+/** LinkedIn's alumni tool for a university (logged-in LinkedIn users), filtered by keywords. */
+export function linkedInAlumniSearch(university: string, keywords: string) {
+  const slug = UNIVERSITY_LINKEDIN[university];
+  if (!slug) return undefined;
+  return `https://www.linkedin.com/school/${slug}/people/?keywords=${encodeURIComponent(keywords)}`;
 }
 
 function uniTerm(p: UserProfile) {
@@ -42,6 +49,7 @@ export function coffeeChatRecommendations(p: UserProfile): NetworkingRecommendat
       role: role1,
       universityConnection: uni ? `Fellow ${uni} graduate` : undefined,
       searchUrl: linkedInPeopleSearch(`${uni} ${role1} ${city}`.trim()),
+      alumniUrl: linkedInAlumniSearch(p.university, role1),
       relevanceExplanation: `Alumni are the most likely to reply, and they know exactly how ${uni || "your university"} students get into ${role1.toLowerCase()} roles.`,
       conversationTopics: ["How did you get your first role after graduating?", "Which modules or projects mattered most?", "What do you wish you'd done in final year?"],
       isDemo: false,
@@ -89,6 +97,7 @@ export function coffeeChatRecommendations(p: UserProfile): NetworkingRecommendat
         !p.visa.skipped && p.visa.needsSponsorship === "yes"
           ? linkedInPeopleSearch(`${uni} international ${primary.searchTitles[0]} ${city}`.trim())
           : linkedInPeopleSearch(`${uni} ${primary.searchTitles[0]} lead`.trim()),
+      alumniUrl: linkedInAlumniSearch(p.university, !p.visa.skipped && p.visa.needsSponsorship === "yes" ? primary.searchTitles[0] : `${primary.searchTitles[0]} lead`),
       relevanceExplanation:
         !p.visa.skipped && p.visa.needsSponsorship === "yes"
           ? "Graduates who've navigated the move from student to working in the UK can share practical tips on timelines and which employers they spoke to."

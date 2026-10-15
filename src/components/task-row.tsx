@@ -5,6 +5,7 @@ import { CalendarDays, Link2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { useStay } from "@/lib/store";
+import { showEffects } from "./effects-toast";
 import type { Priority, RoadmapTask, TaskCategory } from "@/lib/types";
 import { cn, daysBetween, formatDate, relativeDays, todayISO } from "@/lib/utils";
 import { Badge, Checkbox } from "./ui";
@@ -48,11 +49,12 @@ export function TaskRow({ task, actions, compact }: { task: RoadmapTask; actions
   const overdue = !done && days < 0;
 
   const onToggle = (e?: { clientX: number; clientY: number }) => {
-    toggleTask(task.id);
+    const effects = toggleTask(task.id);
     if (!done) {
       celebrate(e ? e.clientX / window.innerWidth : 0.5, e ? e.clientY / window.innerHeight : 0.6);
       toast.success("Nice — progress updated", { description: task.title });
     }
+    showEffects(effects);
   };
 
   return (

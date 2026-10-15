@@ -1,5 +1,5 @@
 import { roleForTrack, TRACK_MAP } from "@/data/careers";
-import type { Priority, RoadmapPhase, RoadmapTask, ScoredEvent, ScoredOpportunity, TaskCategory, UserProfile } from "@/lib/types";
+import type { Activity, ContactStatus, Priority, RoadmapPhase, RoadmapTask, ScoredEvent, ScoredOpportunity, TaskCategory, UserProfile } from "@/lib/types";
 import { addDays, addMonths, daysBetween, monthsBetween, parseISO, toISO, todayISO } from "@/lib/utils";
 import { analyseSkills, displaySkill } from "./skills";
 import { estimateGraduateRoute } from "./visa";
@@ -16,7 +16,35 @@ export interface RoadmapContext {
   today: string;
   opportunities: ScoredOpportunity[];
   events: ScoredEvent[];
+  activity?: Activity;
 }
+
+export const EMPTY_ACTIVITY: Activity = { savedOpps: [], appliedOpps: {}, contacts: {}, completedTemplateIds: [] };
+
+const REACHED_OUT: ContactStatus[] = ["contacted", "replied", "chat_scheduled", "completed"];
+
+/** Simple counts derived from what the user has done in STAY. */
+export function activityStats(a: Activity) {
+  const statuses = Object.values(a.contacts).map((c) => c.status);
+  return {
+    applied: Object.keys(a.appliedOpps).length,
+    saved: a.savedOpps.length,
+    reachedOut: statuses.filter((s) => REACHED_OUT.includes(s)).length,
+    chatsDone: statuses.filter((s) => s === "completed").length,
+    replied: statuses.filter((s) => s === "replied" || s === "chat_scheduled" || s === "completed").length,
+  };
+}
+
+/**
+ * Tasks that STAY can mark complete from your activity elsewhere in the app
+ * (e.g. logging coffee chats or marking roles as applied).
+ */
+export const AUTO_COMPLETE_RULES: { templateId: string; met: (st: ReturnType<typeof activityStats>) => boolean; because: string }[] = [
+  { templateId: "coffee-first-two", met: (st) => st.reachedOut >= 2, because: "you've reached out to 2 people" },
+  { templateId: "coffee-three-done", met: (st) => st.chatsDone >= 3, because: "you've completed 3 coffee chats" },
+  { templateId: "grad-apply-5", met: (st) => st.applied >= 5, because: "you've marked 5 roles as applied" },
+  { templateId: "grad-apply-10", met: (st) => st.applied >= 10, because: "you've marked 10 roles as applied" },
+];
 
 export interface Horizon {
   start: string;
@@ -487,6 +515,107 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
         });
       }
     }
+  }
+
+  // ---- Dynamic: react to what the user has done ----
+  const act = ctx.activity ?? EMPTY_ACTIVITY;
+  const st = activityStats(act);
+  const done = new Set(act.completedTemplateIds);
+
+  // Saved roles that haven't been applied to yet
+  ctx.opportunities
+    .filter((s) => act.savedOpps.includes(s.opportunity.id) && !act.appliedOpps[s.opportunity.id] && s.eligible !== false)
+    .slice(0, 3)
+    .forEach((s) => {
+      const o = s.opportunity;
+      if (drafts.some((d) => d.sourceOpportunityId === o.id)) return;
+      drafts.push({
+        templateId: `opp-${o.id}`,
+        title: `Apply to your saved role: ${o.title} — ${o.company}`,
+        description: `You saved this role. ${s.missingSkills.length ? `Address ${s.missingSkills.slice(0, 2).join(" and ")} in your cover letter or projects.` : "You match the listed skills — tailor your CV and apply."}`,
+        deadline: o.deadline ? clamp(addDays(o.deadline, -2)) : at(10),
+        priority: o.deadline && daysBetween(today, o.deadline) <= 14 ? "urgent" : "high",
+        category: "applications",
+        sourceOpportunityId: o.id,
+      });
+    });
+
+  // Applications sent → prepare for what comes next
+  if (st.applied >= 1) {
+    drafts.push({
+      templateId: "applied-followup",
+      title: `Track responses for your ${st.applied} application${st.applied === 1 ? "" : "s"} and prep for online tests`,
+      description: "Online assessments often arrive within 1–2 weeks of applying. Note each company's stages as you hear back.",
+      deadline: at(10),
+      priority: "high",
+      category: "interviews",
+    });
+  }
+  if (st.applied >= 3) {
+    drafts.push({
+      templateId: "applied-company-research",
+      title: "Research the companies you applied to (products, values, recent news)",
+      description: "Prepare one specific 'why this company' answer per application before interviews arrive.",
+      deadline: at(14),
+      priority: "medium",
+      category: "interviews",
+    });
+  }
+
+  // Networking progress
+  if (st.reachedOut >= 1 && st.replied === 0) {
+    drafts.push({
+      templateId: "coffee-follow-up",
+      title: "Follow up once with people who haven't replied (after 7 days)",
+      description: "A short, friendly nudge is fine — then move on. Keep reaching out to new people too.",
+      deadline: at(7),
+      priority: "medium",
+      category: "networking",
+    });
+  }
+  if (st.replied >= 1) {
+    drafts.push({
+      templateId: "coffee-prep-questions",
+      title: "Prepare 3 questions for your scheduled coffee chat",
+      description: "Use the topics on the Coffee Chats page; send a thank-you note within 24 hours afterwards.",
+      deadline: at(5),
+      priority: "high",
+      category: "networking",
+    });
+  }
+
+  // Next useful action after completing something
+  if (done.has("cv-project-led")) {
+    drafts.push({
+      templateId: "cv-review",
+      title: "Get your new CV reviewed (careers service or a CV clinic)",
+      description: "A second pair of eyes catches gaps before deadlines. Check Campus Events for CV clinics.",
+      deadline: at(10),
+      priority: "medium",
+      category: "cv",
+    });
+  }
+  const finishedProject = act.completedTemplateIds.find((t) => t.startsWith("project-") || t.startsWith("user-proj-"));
+  if (finishedProject) {
+    drafts.push({
+      templateId: "project-showcase",
+      title: "Showcase your finished project: README, demo link, CV bullet and LinkedIn post",
+      description: "Lead with the problem, your approach, a metric and limitations — then use it as an interview story.",
+      deadline: at(7),
+      priority: "high",
+      category: "projects",
+    });
+  }
+  const finishedGaps = act.completedTemplateIds.filter((t) => t.startsWith("gap-") || t.startsWith("user-skill-")).length;
+  if (finishedGaps >= 1) {
+    drafts.push({
+      templateId: "skills-prove-it",
+      title: "Prove a new skill in public: a short notebook, blog post or repo",
+      description: "Recruiters trust evidence. A small public artefact makes a new skill credible.",
+      deadline: at(21),
+      priority: "medium",
+      category: "skills",
+    });
   }
 
   // Urgency + increasing priority as the anchor approaches

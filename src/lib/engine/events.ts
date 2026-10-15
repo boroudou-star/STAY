@@ -1,6 +1,6 @@
 import { canonicalSkill, TRACK_MAP } from "@/data/careers";
 import { getDemoEvents } from "@/data/events";
-import type { CareerEvent, EventCategory, ScoredEvent, UserProfile } from "@/lib/types";
+import type { Activity, CareerEvent, EventCategory, ScoredEvent, UserProfile } from "@/lib/types";
 import { daysBetween, todayISO } from "@/lib/utils";
 import { analyseSkills } from "./skills";
 
@@ -98,7 +98,7 @@ export function isUpcoming(e: CareerEvent, today = todayISO()) {
   return !e.isCancelled && e.date >= today;
 }
 
-export function scoreEvent(e: CareerEvent, p: UserProfile, gapCanon: Set<string>, today = todayISO()): ScoredEvent {
+export function scoreEvent(e: CareerEvent, p: UserProfile, gapCanon: Set<string>, today = todayISO(), lowNetworking = false): ScoredEvent {
   const reasons: string[] = [];
   let score = 0;
 
@@ -125,6 +125,10 @@ export function scoreEvent(e: CareerEvent, p: UserProfile, gapCanon: Set<string>
     score += 20;
     reasons.push("covers post-study work options");
   }
+  if (lowNetworking && (e.category === "networking" || e.category === "careers_fair" || e.category === "panel")) {
+    score += 10;
+    reasons.push("a low-pressure way to start building contacts");
+  }
   if (p.university && e.university && p.university.toLowerCase() === e.university.toLowerCase()) score += 6;
 
   const days = daysBetween(today, e.date);
@@ -141,10 +145,12 @@ export function scoreEvent(e: CareerEvent, p: UserProfile, gapCanon: Set<string>
   return { event: e, score, reasons, explanation, matchedGaps };
 }
 
-export function rankEvents(events: CareerEvent[], p: UserProfile, today = todayISO()): ScoredEvent[] {
+export function rankEvents(events: CareerEvent[], p: UserProfile, today = todayISO(), activity?: Activity): ScoredEvent[] {
   const gaps = new Set(analyseSkills(p).gaps.map((g) => g.canonical));
+  const reachedOut = activity ? Object.values(activity.contacts).filter((c) => c.status !== "want_to_contact" && c.status !== "message_drafted").length : 0;
+  const lowNetworking = Boolean(activity) && reachedOut < 2;
   return events
     .filter((e) => isUpcoming(e, today))
-    .map((e) => scoreEvent(e, p, gaps, today))
+    .map((e) => scoreEvent(e, p, gaps, today, lowNetworking))
     .sort((a, b) => b.score - a.score || a.event.date.localeCompare(b.event.date));
 }

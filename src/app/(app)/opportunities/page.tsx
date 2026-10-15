@@ -6,10 +6,11 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { liveJobSearches } from "@/data/opportunities";
 import { SKILL_GUIDES, canonicalSkill, DEFAULT_GUIDE, roleForTrack, TRACK_MAP } from "@/data/careers";
-import { Badge, Button, Card, Chip, DemoBadge, EmptyState, Input, LinkButton, Modal, PageHeader, Tabs } from "@/components/ui";
+import { Badge, Button, Card, Chip, DemoBadge, EmptyState, Input, LinkButton, LiveBadge, Modal, PageHeader, Tabs } from "@/components/ui";
 import { OPPORTUNITY_TYPE_LABEL } from "@/lib/engine/opportunities";
-import { useDerived } from "@/lib/hooks";
+import { useDerived, useLiveOpportunities } from "@/lib/hooks";
 import { useStay } from "@/lib/store";
+import { showEffects } from "@/components/effects-toast";
 import type { MatchFactor, OpportunityType, ScoredOpportunity } from "@/lib/types";
 import { cn, daysBetween, formatDate } from "@/lib/utils";
 
@@ -17,6 +18,11 @@ type View = "recommended" | "saved" | "applied";
 
 export default function OpportunitiesPage() {
   const d = useDerived();
+  const goal = TRACK_MAP[d.profile.careerGoals[0] ?? "exploring"];
+  const keyword = roleForTrack(goal.id, d.profile.preferredRoles);
+  const city = d.profile.locationPreferences.find((l) => !/remote/i.test(l)) ?? "London";
+  const live = useLiveOpportunities(goal.id, city);
+  const [source, setSource] = useState<"all" | "live" | "demo">("all");
   const savedOpps = useStay((s) => s.savedOpps);
   const appliedOpps = useStay((s) => s.appliedOpps);
   const [view, setView] = useState<View>("recommended");
@@ -32,16 +38,14 @@ export default function OpportunitiesPage() {
     if (view === "applied") l = l.filter((s) => appliedOpps[s.opportunity.id]);
     if (view === "recommended" && !showIneligible) l = l.filter((s) => s.eligible !== false);
     if (type) l = l.filter((s) => s.opportunity.type === type);
+    if (source !== "all") l = l.filter((s) => (source === "demo" ? s.opportunity.isDemo : !s.opportunity.isDemo));
     if (q.trim()) {
       const n = q.toLowerCase();
       l = l.filter((s) => `${s.opportunity.title} ${s.opportunity.company} ${s.opportunity.location} ${s.opportunity.skillsRequired.join(" ")}`.toLowerCase().includes(n));
     }
     return l;
-  }, [d.opportunities, view, savedOpps, appliedOpps, showIneligible, type, q]);
+  }, [d.opportunities, view, savedOpps, appliedOpps, showIneligible, type, q, source]);
   const hiddenIneligible = d.opportunities.filter((s) => s.eligible === false).length;
-  const goal = TRACK_MAP[d.profile.careerGoals[0] ?? "exploring"];
-  const keyword = roleForTrack(goal.id, d.profile.preferredRoles);
-  const city = d.profile.locationPreferences.find((l) => !/remote/i.test(l)) ?? "London";
 
   return (
     <div>
@@ -53,9 +57,18 @@ export default function OpportunitiesPage() {
 
       <div className="mb-5 flex flex-col gap-3 rounded-3xl border border-dashed border-ink/20 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3 text-[13.5px] text-ink-2">
-          <DemoBadge className="mt-0.5 shrink-0" />
+          {live.status === "ok" ? <LiveBadge className="mt-0.5 shrink-0" label={`${live.count} live`} /> : <DemoBadge className="mt-0.5 shrink-0" />}
           <span>
-            Listings below are <b>fictional examples</b> showing how matching works — they are not real vacancies. Live job connectors plug into the same scoring engine.
+            {live.status === "ok" ? (
+              <>
+                <b>{live.count} live roles</b> from Adzuna for &ldquo;{keyword}&rdquo; in {city}, scored with the same engine — plus <b>fictional demo listings</b> (labelled) that show the full matching.
+              </>
+            ) : (
+              <>
+                Listings below are <b>fictional examples</b> showing how matching works — not real vacancies.{" "}
+                {live.status === "off" ? "Add Adzuna API keys to pull live roles into the same scoring engine." : live.status === "loading" ? "Checking for live roles…" : "Live roles are unavailable right now."}
+              </>
+            )}
           </span>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -83,6 +96,16 @@ export default function OpportunitiesPage() {
         </div>
       </div>
       <div className="scrollbar-none mb-5 flex gap-2 overflow-x-auto">
+        {live.status === "ok" && (
+          <>
+            {(["all", "live", "demo"] as const).map((v) => (
+              <Chip key={v} active={source === v} onClick={() => setSource(v)}>
+                {v === "all" ? "All sources" : v === "live" ? "🟢 Live" : "Demo"}
+              </Chip>
+            ))}
+            <span className="mx-1 w-px shrink-0 bg-line" />
+          </>
+        )}
         <Chip active={!type} onClick={() => setType(null)}>
           All types
         </Chip>
@@ -146,7 +169,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge tone="violet">{OPPORTUNITY_TYPE_LABEL[o.type]}</Badge>
-            {o.isDemo && <DemoBadge />}
+            {o.isDemo ? <DemoBadge /> : <LiveBadge label={o.sourceName} />}
             {s.eligible === false && <Badge tone="red">Likely not eligible</Badge>}
             {applied && (
               <Badge tone="teal">
@@ -166,8 +189,9 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
         </div>
         <button
           onClick={() => {
-            toggleSavedOpp(o.id);
+            const fx = toggleSavedOpp(o.id);
             toast.success(saved ? "Removed from saved" : "Saved — find it under Saved");
+            showEffects(fx);
           }}
           className={cn("rounded-xl p-2 transition-colors", saved ? "bg-lime/50 text-ink" : "text-muted hover:bg-paper-2 hover:text-ink")}
           aria-label={saved ? "Unsave" : "Save opportunity"}
@@ -234,8 +258,9 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
           size="sm"
           variant="secondary"
           onClick={() => {
-            toggleApplied(o.id);
+            const fx = toggleApplied(o.id);
             toast.success(applied ? "Unmarked as applied" : "Marked as applied — good luck! 🍀");
+            showEffects(fx);
           }}
         >
           {applied ? "Undo applied" : "Mark applied"}

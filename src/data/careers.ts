@@ -331,3 +331,11 @@ export function roleForTrack(track: CareerTrack, preferredRoles: string[]) {
   );
   return match ?? info.roles[0];
 }
+
+/**
+ * Verified LinkedIn school pages (slug from the university's own website footer).
+ * Add more universities here; the alumni tool is https://www.linkedin.com/school/<slug>/people/
+ */
+export const UNIVERSITY_LINKEDIN: Record<string, string> = {
+  UCL: "university-college-london",
+};

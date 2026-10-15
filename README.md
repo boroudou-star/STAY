@@ -13,7 +13,7 @@ cp .env.example .env.local   # optional — the app works without a key
 npm run dev                  # http://localhost:3000
 ```
 
-Production check: `npm run build && npm start`. Lint: `npm run lint`.
+Production check: `npm run build && npm start`. Lint: `npm run lint`. Engine tests: `npm test`.
 
 Deploy: import the repo into Vercel (framework: Next.js, no settings needed). Add `ANTHROPIC_API_KEY` in Vercel → Settings → Environment Variables to switch on AI features.
 
@@ -23,6 +23,7 @@ Deploy: import the repo into Vercel (framework: Next.js, no settings needed). Ad
 |---|---|---|
 | `ANTHROPIC_API_KEY` | No | Enables AI insight text, outreach polishing, announcement extraction, CV skill extraction and live UCL Careers parsing. Server-side only. |
 | `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5-5`. |
+| `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | No | Live UK job listings from the Adzuna API (free developer keys), merged into the same scoring engine. |
 
 Without a key, every feature falls back to deterministic logic.
 
@@ -43,12 +44,24 @@ Without a key, every feature falls back to deterministic logic.
 | Area | Source |
 |---|---|
 | Roadmap, scoring, priorities | Deterministic engine (`src/lib/engine`) — works offline |
-| Opportunities | 20 fictional demo listings + working links to live searches (LinkedIn Jobs, Prospects, GOV.UK Find a job) |
+| Opportunities | 20 fictional demo listings + live Adzuna roles when keys are set (`/api/opportunities/live`, 1h cache; unverified fields shown as "Not verified") + links to live searches (LinkedIn Jobs, Prospects, GOV.UK Find a job) |
 | Campus events | Demo events + user-pasted announcements + live UCL Careers fetch (`/api/events/live`, 6h cache, robots.txt checked; parsed via JSON-LD or Claude) |
-| Coffee chats | 5 real LinkedIn people-search URLs per profile + user-added contacts. No invented people, nothing auto-sent |
+| Coffee chats | 5 real LinkedIn people-search URLs per profile (+ UCL's LinkedIn alumni tool) + user-added contacts. No invented people, nothing auto-sent |
 | Visa | General rules incl. Graduate route change (18 months for applications from 1 Jan 2027; PhD 3 years), links to GOV.UK |
 
-Needs access to integrate later: job APIs (e.g. Adzuna/Reed), Students' Union UCL feed, society Instagram (Graph API with each account's authorisation), LinkedIn (no people-search API), Supabase auth.
+Needs access to integrate later: Adzuna keys (code ready), other job APIs (e.g. Reed), Students' Union UCL feed, society Instagram (Graph API with each account's authorisation), LinkedIn (no people-search API), Supabase auth.
+
+## How the pieces are linked
+
+STAY reacts to what you do, using deterministic rules (`src/lib/engine/roadmap.ts`, `src/lib/store.ts`):
+
+- **Save a role** → "Apply to your saved role" task, dated before its deadline.
+- **Mark roles applied** → "Track responses / prep for online tests"; 5 and 10 applications auto-tick the matching roadmap tasks.
+- **Coffee-chat statuses** → 2 contacted auto-ticks "Send 2 coffee-chat messages"; no replies adds a follow-up; a reply adds "Prepare 3 questions"; low networking boosts networking events.
+- **Tick a skill task** (e.g. "Build PyTorch") → the skill is added to your profile, so gaps and opportunity scores update; un-ticking removes it.
+- **Finish CV / project / skill tasks** → next-step tasks (CV review, project showcase, prove-it-in-public).
+- **Change goals or preferences** → roadmap rebuilt, opportunities and events re-ranked; completed tasks and user-edited dates are always kept.
+- **Scoring** also uses role types, company types, minimum salary and your priority sliders (weights are shown in "Why X%?").
 
 ## Project structure
 

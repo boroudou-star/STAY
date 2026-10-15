@@ -137,14 +137,27 @@ export interface Opportunity {
     gradTo?: string;
     note: string;
   };
-  experienceLevel: "none" | "some" | "1yr+";
+  experienceLevel: "none" | "some" | "1yr+" | "unknown";
   salary?: string; // only when verified
   deadline?: string; // only when verified
   sponsorshipStatus: SponsorshipStatus;
+  companyType?: CompanyType;
   sourceUrl?: string;
   sourceName: string;
   verifiedAt?: string;
   isDemo: boolean;
+  /** "Skills mentioned in listing" when extracted from a live description rather than a structured spec */
+  skillsSource?: "structured" | "description";
+}
+
+export type CompanyType = "Big tech" | "Startups / scale-ups" | "Consultancies" | "Banks & finance" | "Public sector / NHS" | "Research labs";
+
+/** What the user has done in STAY — feeds dynamic recommendations. */
+export interface Activity {
+  savedOpps: string[];
+  appliedOpps: Record<string, string>;
+  contacts: Record<string, { status: ContactStatus }>;
+  completedTemplateIds: string[];
 }
 
 export type EventCategory =
@@ -208,6 +221,8 @@ export interface NetworkingRecommendation {
   universityConnection?: string;
   profileUrl?: string;
   searchUrl?: string;
+  /** LinkedIn's university alumni tool, when we know the school's page */
+  alumniUrl?: string;
   relevanceExplanation: string;
   conversationTopics: string[];
   isDemo: boolean;

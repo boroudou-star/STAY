@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Badge, Button, Card, Input, Label, LinkButton, Modal, PageHeader, Select, Textarea } from "@/components/ui";
 import { CONTACT_STATUS_LABEL, coffeeChatRecommendations, outreachTemplate } from "@/lib/engine/coffee";
 import { useStay } from "@/lib/store";
+import { showEffects } from "@/components/effects-toast";
 import type { ContactStatus, NetworkingRecommendation, UserContact } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -110,7 +111,7 @@ function StatusSelect({ id }: { id: string }) {
       aria-label="Contact status"
       value={status}
       onChange={(e) => {
-        setContact(id, { status: e.target.value as ContactStatus });
+        showEffects(setContact(id, { status: e.target.value as ContactStatus }));
         if (e.target.value === "completed") toast.success("Chat completed ☕ — log what you learned in Notes");
       }}
       className={cn("h-8 w-auto rounded-full border-0 py-0 pl-3 pr-8 text-[12px] font-semibold", STATUS_TONE[status])}
@@ -151,9 +152,14 @@ function RecCard({ n, rec, onCompose, onAddPerson, onNotes }: { n: number; rec: 
       </div>
       {tracking?.followUpDate && <div className="mt-2 text-[12px] text-muted">Follow up: {formatDate(tracking.followUpDate)}</div>}
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+        {rec.alumniUrl && (
+          <LinkButton href={rec.alumniUrl} external size="sm" variant="secondary">
+            Alumni tool <ExternalLink size={12} />
+          </LinkButton>
+        )}
         {rec.searchUrl && (
           <LinkButton href={rec.searchUrl} external size="sm" variant="secondary">
-            Open LinkedIn search <ExternalLink size={12} />
+            {rec.alumniUrl ? "People search" : "Open LinkedIn search"} <ExternalLink size={12} />
           </LinkButton>
         )}
         <Button size="sm" onClick={onCompose}>

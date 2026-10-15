@@ -2,7 +2,7 @@ import { rankEvents, DemoEventProvider } from "@/lib/engine/events";
 import { listOpportunitiesSync, rankOpportunities } from "@/lib/engine/opportunities";
 import { generateDrafts, mergeRoadmap } from "@/lib/engine/roadmap";
 import { getDemoEvents } from "@/data/events";
-import type { CareerEvent, RoadmapTask, UserProfile } from "@/lib/types";
+import type { Activity, CareerEvent, Opportunity, RoadmapTask, UserProfile } from "@/lib/types";
 import { todayISO } from "@/lib/utils";
 
 /**
@@ -14,9 +14,16 @@ export function allEventsSync(manual: CareerEvent[], live: CareerEvent[] = [], t
   return [...live, ...manual, ...getDemoEvents(today)];
 }
 
-export function buildRoadmap(profile: UserProfile, existing: RoadmapTask[], manualEvents: CareerEvent[], today = todayISO()) {
-  const opportunities = rankOpportunities(listOpportunitiesSync(today), profile, today);
-  const events = rankEvents(allEventsSync(manualEvents, [], today), profile, today);
-  const drafts = generateDrafts({ profile, today, opportunities, events });
+export function buildRoadmap(
+  profile: UserProfile,
+  existing: RoadmapTask[],
+  manualEvents: CareerEvent[],
+  activity?: Activity,
+  liveOpportunities: Opportunity[] = [],
+  today = todayISO(),
+) {
+  const opportunities = rankOpportunities([...liveOpportunities, ...listOpportunitiesSync(today)], profile, today);
+  const events = rankEvents(allEventsSync(manualEvents, [], today), profile, today, activity);
+  const drafts = generateDrafts({ profile, today, opportunities, events, activity });
   return mergeRoadmap(existing, drafts);
 }

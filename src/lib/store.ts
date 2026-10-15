@@ -4,9 +4,11 @@ import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { demoProfile } from "@/data/demo-profile";
+import { activityStats, AUTO_COMPLETE_RULES } from "@/lib/engine/roadmap";
+import { canonicalSkill } from "@/data/careers";
 import { buildRoadmap } from "@/lib/services/catalog";
 import { stayStorage, STORAGE_KEY } from "@/lib/persistence";
-import type { CareerEvent, ContactTracking, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
+import type { Activity, CareerEvent, ContactTracking, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
 import { addDays, daysBetween, todayISO, uid } from "@/lib/utils";
 
 export interface ChangeSummary {
@@ -15,6 +17,14 @@ export interface ChangeSummary {
   removed: number;
   keptCompleted: number;
   at: string;
+}
+
+/** What changed as a side-effect of an action — the UI turns this into toasts. */
+export interface Effects {
+  autoCompleted: { title: string; because: string }[];
+  addedSkill?: string;
+  removedSkill?: string;
+  newTasks: string[];
 }
 
 export interface InsightCache {
@@ -35,6 +45,10 @@ interface StayState {
   userContacts: UserContact[];
   insight: InsightCache | null;
   lastChange: ChangeSummary | null;
+  /** Live opportunities fetched from a connector, kept so saved/applied items still resolve */
+  liveOpps: Opportunity[];
+  /** Skills added to the profile by completing a skill task (taskId → skill), so un-ticking can undo it */
+  skillsFromTasks: Record<string, string>;
 
   setProfile: (p: UserProfile, reason?: string) => ChangeSummary;
   loadDemo: () => void;
@@ -42,8 +56,8 @@ interface StayState {
   resetAll: () => void;
   resetProgress: () => void;
 
-  setTaskStatus: (id: string, status: TaskStatus) => void;
-  toggleTask: (id: string) => void;
+  setTaskStatus: (id: string, status: TaskStatus) => Effects;
+  toggleTask: (id: string) => Effects;
   updateTask: (id: string, patch: Partial<RoadmapTask>) => void;
   addCustomTask: (t: { title: string; description?: string; deadline: string; priority: Priority; category?: TaskCategory; skill?: string }) => void;
   deleteTask: (id: string) => void;
@@ -52,13 +66,14 @@ interface StayState {
   addEventToRoadmap: (e: CareerEvent) => boolean;
   addSkillTaskToRoadmap: (t: { key: string; title: string; description: string; skill?: string; days: number; category?: TaskCategory }) => boolean;
 
-  toggleSavedOpp: (id: string) => void;
-  toggleApplied: (id: string) => void;
+  toggleSavedOpp: (id: string) => Effects;
+  toggleApplied: (id: string) => Effects;
   toggleSavedEvent: (id: string) => void;
   addManualEvent: (e: CareerEvent) => void;
   removeManualEvent: (id: string) => void;
 
-  setContact: (id: string, patch: Partial<ContactTracking>) => void;
+  setContact: (id: string, patch: Partial<ContactTracking>) => Effects;
+  setLiveOpps: (opps: Opportunity[]) => void;
   addUserContact: (c: Omit<UserContact, "id" | "createdAt">) => void;
   removeUserContact: (id: string) => void;
 
@@ -76,7 +91,31 @@ const initial = {
   userContacts: [] as UserContact[],
   insight: null,
   lastChange: null,
+  liveOpps: [] as Opportunity[],
+  skillsFromTasks: {} as Record<string, string>,
 };
+
+type Snapshot = Pick<StayState, "savedOpps" | "appliedOpps" | "contacts" | "tasks">;
+
+export function activityOf(s: Snapshot): Activity {
+  return {
+    savedOpps: s.savedOpps,
+    appliedOpps: s.appliedOpps,
+    contacts: s.contacts,
+    completedTemplateIds: s.tasks.filter((t) => t.status === "completed" && t.templateId).map((t) => t.templateId!),
+  };
+}
+
+const NO_EFFECTS: Effects = { autoCompleted: [], newTasks: [] };
+
+/** Follow-up steps are the most meaningful "next up" — show them first. */
+const FOLLOW_UPS = ["cv-review", "project-showcase", "skills-prove-it", "applied-followup", "applied-company-research", "coffee-follow-up", "coffee-prep-questions"];
+function newTaskTitles(tasks: RoadmapTask[], prevIds: Set<string>) {
+  return tasks
+    .filter((t) => !prevIds.has(t.id))
+    .sort((a, b) => Number(FOLLOW_UPS.includes(b.templateId ?? "")) - Number(FOLLOW_UPS.includes(a.templateId ?? "")))
+    .map((t) => t.title);
+}
 
 export const useStay = create<StayState>()(
   persist(
@@ -84,7 +123,7 @@ export const useStay = create<StayState>()(
       ...initial,
 
       setProfile: (p, reason = "Profile updated") => {
-        const merged = buildRoadmap(p, get().tasks, get().manualEvents);
+        const merged = buildRoadmap(p, get().tasks, get().manualEvents, activityOf(get()), get().liveOpps);
         const summary = { reason, added: merged.added, removed: merged.removed, keptCompleted: merged.keptCompleted, at: new Date().toISOString() };
         set({ profile: { ...p, updatedAt: new Date().toISOString() }, tasks: merged.tasks, lastChange: summary, insight: null });
         return summary;
@@ -105,7 +144,7 @@ export const useStay = create<StayState>()(
       regenerate: (reason = "Recommendations refreshed") => {
         const p = get().profile;
         if (!p) return null;
-        const merged = buildRoadmap(p, get().tasks, get().manualEvents);
+        const merged = buildRoadmap(p, get().tasks, get().manualEvents, activityOf(get()), get().liveOpps);
         const summary = { reason, added: merged.added, removed: merged.removed, keptCompleted: merged.keptCompleted, at: new Date().toISOString() };
         set({ tasks: merged.tasks, lastChange: summary, insight: null });
         return summary;
@@ -116,16 +155,51 @@ export const useStay = create<StayState>()(
       resetProgress: () =>
         set((s) => ({ tasks: s.tasks.map((t) => ({ ...t, status: "todo" as const, completedAt: undefined })), insight: null })),
 
-      setTaskStatus: (id, status) =>
-        set((s) => ({
-          tasks: s.tasks.map((t) => (t.id === id ? { ...t, status, completedAt: status === "completed" ? new Date().toISOString() : undefined } : t)),
-          insight: null,
-        })),
+      setTaskStatus: (id, status) => {
+        const before = get();
+        const task = before.tasks.find((t) => t.id === id);
+        if (!task || task.status === status) return NO_EFFECTS;
+        const effects: Effects = { autoCompleted: [], newTasks: [] };
+        let profile = before.profile;
+        const skillsFromTasks = { ...before.skillsFromTasks };
+
+        // Completing a skill-building task counts as evidence for that skill (you ticked it), un-ticking undoes it.
+        const isSkillTask = task.category === "skills" && task.skill && (task.templateId?.startsWith("gap-") || task.templateId?.startsWith("user-skill-"));
+        if (profile && isSkillTask) {
+          const skill = task.skill!;
+          const has = [...profile.technicalSkills, ...profile.professionalSkills].some((x) => canonicalSkill(x) === canonicalSkill(skill));
+          if (status === "completed" && !has) {
+            profile = { ...profile, technicalSkills: [...profile.technicalSkills, skill] };
+            skillsFromTasks[id] = skill;
+            effects.addedSkill = skill;
+          } else if (status !== "completed" && skillsFromTasks[id]) {
+            const added = skillsFromTasks[id];
+            profile = { ...profile, technicalSkills: profile.technicalSkills.filter((x) => x !== added) };
+            delete skillsFromTasks[id];
+            effects.removedSkill = added;
+          }
+        }
+
+        const tasks = before.tasks.map((t) => (t.id === id ? { ...t, status, completedAt: status === "completed" ? new Date().toISOString() : undefined } : t));
+        set({ tasks, profile, skillsFromTasks, insight: null });
+
+        // Rebuild so follow-up actions appear (and skills-based scores update); completed work is always kept.
+        if (profile) {
+          const prevIds = new Set(get().tasks.map((t) => t.id));
+          const merged = buildRoadmap(get().profile!, get().tasks, get().manualEvents, activityOf(get()), get().liveOpps);
+          effects.newTasks = newTaskTitles(merged.tasks, prevIds);
+          set({
+            tasks: merged.tasks,
+            lastChange: merged.added || merged.removed ? { reason: "Plan updated after progress", added: merged.added, removed: merged.removed, keptCompleted: merged.keptCompleted, at: new Date().toISOString() } : get().lastChange,
+          });
+        }
+        return effects;
+      },
 
       toggleTask: (id) => {
         const t = get().tasks.find((x) => x.id === id);
-        if (!t) return;
-        get().setTaskStatus(id, t.status === "completed" ? "todo" : "completed");
+        if (!t) return NO_EFFECTS;
+        return get().setTaskStatus(id, t.status === "completed" ? "todo" : "completed");
       },
 
       updateTask: (id, patch) =>
@@ -229,25 +303,31 @@ export const useStay = create<StayState>()(
         return true;
       },
 
-      toggleSavedOpp: (id) => set((s) => ({ savedOpps: s.savedOpps.includes(id) ? s.savedOpps.filter((x) => x !== id) : [...s.savedOpps, id] })),
-      toggleApplied: (id) =>
-        set((s) => {
-          const next = { ...s.appliedOpps };
-          if (next[id]) delete next[id];
-          else next[id] = todayISO();
-          return { appliedOpps: next };
-        }),
+      toggleSavedOpp: (id) => {
+        set((s) => ({ savedOpps: s.savedOpps.includes(id) ? s.savedOpps.filter((x) => x !== id) : [...s.savedOpps, id] }));
+        return autoSync(get, set);
+      },
+      toggleApplied: (id) => {
+        const next = { ...get().appliedOpps };
+        if (next[id]) delete next[id];
+        else next[id] = todayISO();
+        set({ appliedOpps: next });
+        return autoSync(get, set);
+      },
       toggleSavedEvent: (id) => set((s) => ({ savedEvents: s.savedEvents.includes(id) ? s.savedEvents.filter((x) => x !== id) : [...s.savedEvents, id] })),
       addManualEvent: (e) => set((s) => ({ manualEvents: [e, ...s.manualEvents.filter((x) => x.id !== e.id)] })),
       removeManualEvent: (id) => set((s) => ({ manualEvents: s.manualEvents.filter((x) => x.id !== id) })),
 
-      setContact: (id, patch) =>
+      setContact: (id, patch) => {
         set((s) => ({
           contacts: {
             ...s.contacts,
             [id]: { ...(s.contacts[id] ?? { status: "want_to_contact" as const }), ...patch, updatedAt: new Date().toISOString() },
           },
-        })),
+        }));
+        return patch.status ? autoSync(get, set) : NO_EFFECTS;
+      },
+      setLiveOpps: (opps) => set({ liveOpps: opps }),
       addUserContact: (c) => set((s) => ({ userContacts: [...s.userContacts, { ...c, id: uid("uc"), createdAt: new Date().toISOString() }] })),
       removeUserContact: (id) => set((s) => ({ userContacts: s.userContacts.filter((c) => c.id !== id) })),
 
@@ -260,6 +340,30 @@ export const useStay = create<StayState>()(
     },
   ),
 );
+
+/**
+ * Linked progress: activity elsewhere in the app (coffee chats, applications) completes matching
+ * roadmap tasks, then the roadmap is rebuilt so the next useful actions appear.
+ */
+function autoSync(get: () => StayState, set: (p: Partial<StayState>) => void): Effects {
+  const s = get();
+  if (!s.profile) return NO_EFFECTS;
+  const st = activityStats(activityOf(s));
+  const autoCompleted: Effects["autoCompleted"] = [];
+  let tasks = s.tasks.map((t) => {
+    const rule = AUTO_COMPLETE_RULES.find((r) => r.templateId === t.templateId);
+    if (rule && t.status !== "completed" && rule.met(st)) {
+      autoCompleted.push({ title: t.title, because: rule.because });
+      return { ...t, status: "completed" as const, completedAt: new Date().toISOString() };
+    }
+    return t;
+  });
+  const prevIds = new Set(tasks.map((t) => t.id));
+  const merged = buildRoadmap(s.profile, tasks, s.manualEvents, activityOf({ ...s, tasks }), s.liveOpps);
+  tasks = merged.tasks;
+  set({ tasks, insight: null });
+  return { autoCompleted, newTasks: newTaskTitles(tasks, prevIds) };
+}
 
 /** True once persisted state has loaded in the browser (avoids SSR/hydration mismatches). */
 export function useHydrated() {

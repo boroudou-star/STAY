@@ -1,4 +1,4 @@
-import type { Opportunity } from "@/lib/types";
+import type { CompanyType, Opportunity } from "@/lib/types";
 import { addDays, todayISO } from "@/lib/utils";
 
 /**
@@ -315,9 +315,32 @@ const SEEDS: Seed[] = [
   },
 ];
 
+/** Fictional company types for the demo companies (used by preference matching). */
+const COMPANY_TYPES: Record<string, CompanyType> = {
+  "Northwind AI": "Startups / scale-ups",
+  Ledgerline: "Startups / scale-ups",
+  "Brightwire Systems": "Big tech",
+  "Quillby Labs": "Research labs",
+  "Harbour Health Analytics": "Startups / scale-ups",
+  "Meridian & Vale": "Consultancies",
+  "Cobalt Freight": "Big tech",
+  "Fernhill Institute": "Research labs",
+  "Ashgrove Capital": "Banks & finance",
+  "Pebble & Co": "Startups / scale-ups",
+  "Kestrel Robotics": "Big tech",
+  "Tandem Health": "Startups / scale-ups",
+  "Civic Insight Partners": "Public sector / NHS",
+  "Loop Studio": "Startups / scale-ups",
+  "Helix Path Therapeutics": "Startups / scale-ups",
+  "Atlas Learning": "Startups / scale-ups",
+  "Calder Energy": "Big tech",
+};
+
 export function getDemoOpportunities(today = todayISO()): Opportunity[] {
   return SEEDS.map(({ deadlineInDays, ...o }) => ({
     ...o,
+    companyType: COMPANY_TYPES[o.company],
+    skillsSource: "structured" as const,
     deadline: deadlineInDays !== undefined ? addDays(today, deadlineInDays) : undefined,
     sourceName: "STAY demo data",
     isDemo: true,
