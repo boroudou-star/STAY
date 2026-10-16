@@ -60,6 +60,8 @@ Anyone can **create an account** (`/signup`: name, email, password), then build 
 
 ## Judge demo (2 minutes)
 
+Shareable links: **https://stay-six-iota.vercel.app/demo** opens the demo in one click (no sign-up); **https://stay-six-iota.vercel.app/signup** creates your own account.
+
 1. Landing → **Try the demo** (loads fictional Alex Chen, final-year CS at UCL).
 2. Dashboard: insight, "3 best moves", tube-map timeline.
 3. Opportunities → save a role, **Add to roadmap**, open **Why 89%?**
