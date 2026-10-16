@@ -3,6 +3,7 @@ import { aiAvailable, aiJSON } from "@/lib/ai";
 import { universitySources, type UniLink } from "@/data/universities";
 import { extractEvents, isCareerRelevant, stripTags, type RawEvent } from "@/lib/engine/event-extract";
 import { fromUclListing } from "@/lib/engine/ucl-events";
+import { robotsMatch, type Rule } from "@/lib/engine/robots";
 import type { CareerEvent, CareerTrack, EventCategory } from "@/lib/types";
 
 /**
@@ -28,20 +29,21 @@ export interface SourceStatus {
 }
 
 type Cache = { at: number; events: CareerEvent[]; sources: SourceStatus[] };
-const g = globalThis as unknown as { __stayUniEvents?: Map<string, Cache>; __stayRobots?: Map<string, { at: number; rules: string[] }> };
+const g = globalThis as unknown as { __stayUniEvents?: Map<string, Cache>; __stayRobots?: Map<string, { at: number; rules: Rule[] }> };
 g.__stayUniEvents ??= new Map();
 g.__stayRobots ??= new Map();
 
-/** Disallow rules that apply to us (our own group, or "*"). */
-async function robotsRules(origin: string): Promise<string[]> {
+
+/** Allow/Disallow rules that apply to us (our own group, or "*"), per the robots.txt standard (RFC 9309). */
+async function robotsRules(origin: string): Promise<Rule[]> {
   const hit = g.__stayRobots!.get(origin);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.rules;
-  let rules: string[] = [];
+  let rules: Rule[] = [];
   try {
     const res = await fetch(`${origin}/robots.txt`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(5000) });
     if (res.ok) {
-      const groups: { agents: string[]; rules: string[] }[] = [];
-      let cur: { agents: string[]; rules: string[] } | null = null;
+      const groups: { agents: string[]; rules: Rule[] }[] = [];
+      let cur: { agents: string[]; rules: Rule[] } | null = null;
       for (const raw of (await res.text()).split("\n")) {
         const l = raw.replace(/#.*/, "").trim();
         const m = l.match(/^([a-z-]+)\s*:\s*(.*)$/i);
@@ -50,10 +52,10 @@ async function robotsRules(origin: string): Promise<string[]> {
         if (/^user-agent$/i.test(key)) {
           if (!cur || cur.rules.length) groups.push((cur = { agents: [], rules: [] }));
           cur.agents.push(val.toLowerCase());
-        } else if (/^disallow$/i.test(key) && cur) cur.rules.push(val);
+        } else if (/^(dis)?allow$/i.test(key) && cur && val) cur.rules.push({ allow: /^allow$/i.test(key), path: val });
       }
-      const ours = groups.find((gr) => gr.agents.some((a) => a.includes("staybot"))) ?? groups.find((gr) => gr.agents.includes("*"));
-      rules = (ours?.rules ?? []).filter(Boolean);
+      const ours = groups.filter((gr) => gr.agents.some((a) => a.includes("staybot")));
+      rules = (ours.length ? ours : groups.filter((gr) => gr.agents.includes("*"))).flatMap((gr) => gr.rules);
     }
   } catch {
     rules = []; // no robots.txt reachable: the page fetch itself will show whether we're welcome
@@ -62,10 +64,10 @@ async function robotsRules(origin: string): Promise<string[]> {
   return rules;
 }
 
-async function allowed(url: URL) {
-  const rules = await robotsRules(url.origin);
-  const path = url.pathname + url.search;
-  return !rules.some((r) => (r.endsWith("$") ? path === r.slice(0, -1) : path.startsWith(r.replace(/\*.*$/, ""))));
+/** null when allowed, otherwise the robots.txt rule that disallows the page. */
+async function disallowedBy(url: URL) {
+  const r = robotsMatch(await robotsRules(url.origin), url.pathname + url.search);
+  return r && !r.allow ? r.path : null;
 }
 
 function inferTracks(text: string): CareerTrack[] {
@@ -128,7 +130,8 @@ async function readSource(link: UniLink, kind: SourceKind, uni: string, today: s
   const status: SourceStatus = { label: link.label, url: link.url, status: "none", count: 0 };
   const url = new URL(link.url);
   try {
-    if (!(await allowed(url))) return { status: { ...status, status: "disallowed", detail: "The site's robots.txt asks automated tools not to read this page" }, events: [] };
+    const rule = await disallowedBy(url);
+    if (rule) return { status: { ...status, status: "disallowed", detail: `The site's robots.txt asks automated tools not to read this page (Disallow: ${rule})` }, events: [] };
     const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" }, redirect: "follow", signal: AbortSignal.timeout(9000) });
     if (res.status === 401 || res.status === 403 || res.status === 429) return { status: { ...status, status: "blocked", detail: `The site refused automated access (HTTP ${res.status})` }, events: [] };
     if (!res.ok) return { status: { ...status, status: "error", detail: `HTTP ${res.status}` }, events: [] };

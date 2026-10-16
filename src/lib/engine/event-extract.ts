@@ -130,6 +130,16 @@ function sameSite(a: URL, b: URL) {
   return a.hostname === b.hostname || root(a.hostname) === root(b.hostname) || a.hostname.endsWith(b.hostname.replace(/^www\./, "")) || b.hostname.endsWith(a.hostname.replace(/^www\./, ""));
 }
 
+/**
+ * Whole event cards are often one big link (title, date, venue). Prefer the heading or "title" element
+ * inside it, so the venue and address don't end up in the event name.
+ */
+function titleOf(inner: string) {
+  const heading = inner.match(/<(h[1-6]|strong|b)\b[^>]*>([\s\S]*?)<\/\1>/i)?.[2] ?? inner.match(/<[a-z0-9]+\b[^>]*class=["'][^"']*(?:title|name|heading)[^"']*["'][^>]*>([\s\S]*?)<\/[a-z0-9]+>/i)?.[1];
+  const t = stripTags(heading ?? inner);
+  return t.length >= 4 ? t : stripTags(inner);
+}
+
 /** Event links with a date printed in the link or in the card around it. */
 export function fromEventLinks(html: string, pageUrl: string, today: string): RawEvent[] {
   const base = new URL(pageUrl);
@@ -146,11 +156,11 @@ export function fromEventLinks(html: string, pageUrl: string, today: string): Ra
     if (!/^https?:$/.test(url.protocol) || !sameSite(url, base)) return;
     const path = url.pathname + url.search;
     if (!EVENT_PATH.test(path) || LISTING_PATH.test(path) || url.href.replace(/\/$/, "") === pageUrl.replace(/\/$/, "")) return;
-    const text = stripTags(a.inner);
+    const text = titleOf(a.inner);
     const prevEnd = i > 0 ? anchors[i - 1].end : Math.max(0, a.start - 400);
     const nextStart = i < anchors.length - 1 ? anchors[i + 1].start : a.end + 400;
     const card = stripTags(body.slice(Math.max(prevEnd, a.start - 500), Math.min(nextStart, a.end + 500)));
-    const date = findDate(text, today) ?? findDate(stripTags(body.slice(a.end, Math.min(nextStart, a.end + 500))), today) ?? findDate(stripTags(body.slice(Math.max(prevEnd, a.start - 500), a.start)), today);
+    const date = findDate(stripTags(a.inner), today) ?? findDate(stripTags(body.slice(a.end, Math.min(nextStart, a.end + 500))), today) ?? findDate(stripTags(body.slice(Math.max(prevEnd, a.start - 500), a.start)), today);
     const key = url.href.replace(/\/$/, "");
     const prev = byUrl.get(key);
     const good = text.length >= 4 && text.length <= 160 && !GENERIC_TEXT.test(text);
@@ -190,12 +200,13 @@ export function extractEvents(html: string, pageUrl: string, today: string): Raw
 /* ------------------------------------------------------------------ */
 
 const CAREER =
-  /\b(career|careers|employ|employer|employability|fair|insight|internship|placement|graduate|workshop|networking|panel|talk|speaker|lecture|seminar|symposium|conference|summit|hackathon|case (?:study|competition)|competition|cv|interview|skills?|recruit|industry|alumni|mentor|start-?up|entrepreneur|pitch|consult|finance|invest|bank|trading|fintech|tech|coding|code|developer|data|\bai\b|machine learning|bio|health|pharma|medic|engineer|law|policy|research|sustainab|climate|marketing|product|leadership|visa)/i;
-const NIGHTLIFE = /\b(night|party|club ?night|karaoke|quiz|bingo|pub|crawl|rave|ball|gig|dj|cocktail|drag|pres|freshers'? (week|fair)? ?night|sport|fitness|yoga|football|rugby|netball|hockey|swim|run club|games night|movie|film night|bake|coffee morning|craft)/i;
+  /\b(careers?|employ(er|ers|ability|ment)|careers fair|jobs fair|internships?|placements?|graduate|insight|networking|panel|talk|speakers?|lecture|seminar|symposium|conference|summit|hackathon|case (study|competition|workshop)|cv|interviews?|recruit\w*|industry|alumni|mentor\w*|start-?ups?|entrepreneur\w*|pitch|consult\w*|invest\w*|banking|trading|fintech|coding|data science|data|ai|machine learning|pharma\w*|biotech|healthcare|health tech|medtech|law firm|policy|research|sustainab\w*|climate|marketing|leadership|economics|finance|tech|engineering|workshop)\b/i;
+const NIGHTLIFE =
+  /\b(night|party|social|club ?night|karaoke|quiz|bingo|pub|crawl|rave|ball|gig|dj|cocktail|drag|trip|tour|sport|fitness|yoga|football|rugby|netball|hockey|padel|tennis|climbing|hike|swim|run club|games|movie|film|bake|coffee morning|craft|novices)\b/i;
 
 /** Careers-service events are always kept; union and society events only when they're career-relevant. */
 export function isCareerRelevant(name: string, sourceKind: "careers" | "union") {
   if (sourceKind === "careers") return true;
   if (!CAREER.test(name)) return false;
-  return !NIGHTLIFE.test(name) || /network|career|employer|industry|insight/i.test(name);
+  return !NIGHTLIFE.test(name) || /\b(networking|careers?|employers?|industry|insight|alumni)\b/i.test(name);
 }
