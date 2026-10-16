@@ -10,7 +10,6 @@ import { Badge, Button, Card, Chip, DemoBadge, EmptyState, Input, Label, LinkBut
 import { EVENT_CATEGORY_LABEL } from "@/lib/engine/events";
 import { parseAnnouncementLocally } from "@/lib/engine/announcement";
 import { useDerived, useLiveEvents } from "@/lib/hooks";
-import { isUCL } from "@/lib/services/catalog";
 import { useStay } from "@/lib/store";
 import type { CareerEvent, CareerTrack, EventCategory, ScoredEvent } from "@/lib/types";
 import { addDays, cn, daysBetween, formatDate, parseISO, relativeDays, todayISO, uid } from "@/lib/utils";
@@ -108,11 +107,13 @@ export default function EventsPage() {
       ) : (
         <EmptyState
           icon={<Bookmark />}
-          title={view === "mine" ? "No events added yet" : d.events.length ? "No events match" : `No events for ${uni} yet`}
+          title={view === "mine" ? "No events added yet" : d.events.length ? "No events match" : live.status === "loading" ? `Checking ${uni} for events…` : `No upcoming events found automatically for ${uni}`}
           body={
-            view === "mine" || !d.events.length
+            view === "mine"
               ? "Paste a society or careers announcement (from Instagram, an email or a web page) and STAY will turn it into an event card and explain why it matters for you."
-              : "Try a wider date range or clear filters."
+              : !d.events.length
+                ? `STAY checks ${uni}'s public careers and union pages automatically, but couldn't read any upcoming career events from them right now. Open the pages above, or paste an announcement (Instagram post, email or web page) and STAY will turn it into an event card.`
+                : "Try a wider date range or clear filters."
           }
           action={view === "mine" || !d.events.length ? <Button onClick={() => setPasteOpen(true)}>Add from announcement</Button> : undefined}
         />
@@ -124,6 +125,51 @@ export default function EventsPage() {
   );
 }
 
+/** Whether STAY could read this page automatically. */
+function SourceState({ url, live }: { url: string; live: ReturnType<typeof useLiveEvents> }) {
+  if (live.status === "loading")
+    return (
+      <Badge>
+        <Loader2 size={10} className="animate-spin" /> checking
+      </Badge>
+    );
+  const st = live.sources.find((x) => x.url === url);
+  if (st?.status === "ok") return <LiveBadge label={`${st.count} found`} />;
+  if (st && (st.status === "blocked" || st.status === "disallowed"))
+    return (
+      <span title={st.detail} className="rounded-full bg-paper-2 px-2 py-0.5 text-[10.5px] font-semibold text-muted">
+        Open to view
+      </span>
+    );
+  return <ExternalLink size={14} className="text-muted" />;
+}
+
+/** One honest line about what STAY read automatically, and what it couldn't. */
+function LiveSummary({ live, uni }: { live: ReturnType<typeof useLiveEvents>; uni: string }) {
+  if (live.status === "loading")
+    return (
+      <p className="flex items-center gap-1.5 text-[12px] text-muted">
+        <Loader2 size={12} className="animate-spin" /> Checking {uni}&apos;s careers and union pages for upcoming events…
+      </p>
+    );
+  const read = live.sources.filter((x) => x.status === "ok" || x.status === "none").length;
+  const refused = live.sources.filter((x) => x.status === "blocked" || x.status === "disallowed");
+  return (
+    <p className="flex items-start gap-1.5 text-[12px] text-muted">
+      <Radio size={12} className="mt-0.5 shrink-0" />
+      <span>
+        STAY reads these pages automatically{live.fetchedAt ? ` (last checked ${relativeTime(live.fetchedAt)})` : ""}: {live.events.length} upcoming career event{live.events.length === 1 ? "" : "s"} found on {read} page{read === 1 ? "" : "s"}.
+        {refused.length > 0 && ` ${refused.map((x) => x.label.split(":")[0]).join(" and ")} ${refused.length === 1 ? "doesn't" : "don't"} allow automated reading, so open ${refused.length === 1 ? "it" : "them"} directly.`}
+      </span>
+    </p>
+  );
+}
+
+function relativeTime(iso: string) {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  return mins < 2 ? "just now" : mins < 60 ? `${mins} minutes ago` : `${Math.round(mins / 60)} hour${Math.round(mins / 60) === 1 ? "" : "s"} ago`;
+}
+
 /** Real pages for this student's university: careers events, fairs, booking, students' union and societies. */
 function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof useLiveEvents>; onPaste: () => void }) {
   const profile = useStay((s) => s.profile)!;
@@ -132,13 +178,13 @@ function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof use
   const track = TRACK_MAP[profile.careerGoals[0] ?? "exploring"];
   const links = src
     ? [
-        { ...src.careersEvents, kind: "Careers events", live: isUCL(profile.university) },
+        { ...src.careersEvents, kind: "Careers events" },
         src.careersFairs && { ...src.careersFairs, kind: "Careers fairs" },
         src.bookingPlatform && { ...src.bookingPlatform, kind: "Book events" },
         src.unionEvents && { ...src.unionEvents, kind: "Students' union" },
         src.societies && { ...src.societies, kind: "Societies" },
         src.international && profile.visa.needsSponsorship !== "no" && { ...src.international, kind: "International students" },
-      ].filter(Boolean) as { label: string; url: string; kind: string; live?: boolean }[]
+      ].filter(Boolean) as { label: string; url: string; kind: string }[]
     : [];
   // Employers with a page specifically for this university's students
   const campus = getRealProgrammes()
@@ -166,15 +212,7 @@ function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof use
                 <span className="flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-teal">
                   <Globe size={13} /> {l.kind}
                 </span>
-                {l.live && live.status === "ok" ? (
-                  <LiveBadge label={`${live.events.length} live`} />
-                ) : l.live && live.status === "loading" ? (
-                  <Badge>
-                    <Loader2 size={10} className="animate-spin" /> checking
-                  </Badge>
-                ) : (
-                  <ExternalLink size={14} className="text-muted group-hover:text-ink" />
-                )}
+                <SourceState url={l.url} live={live} />
               </div>
               <div className="mt-2 text-[13.5px] font-semibold leading-snug">{l.label}</div>
               <div className="mt-1 truncate text-[11.5px] text-muted">{new URL(l.url).hostname.replace(/^www\./, "")}</div>
@@ -215,11 +253,7 @@ function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof use
           <ClipboardPaste size={12} /> Paste an announcement
         </button>
       </div>
-      {isUCL(profile.university) && live.status === "unavailable" && (
-        <p className="flex items-center gap-1.5 text-[12px] text-muted">
-          <Radio size={12} /> Live UCL Careers listings couldn&apos;t be loaded right now{live.message ? ` (${live.message})` : ""}. Open the links above for current events.
-        </p>
-      )}
+      {live.status !== "idle" && <LiveSummary live={live} uni={uni} />}
     </div>
   );
 }

@@ -6,7 +6,8 @@ import { deterministicInsight, insightFacts } from "@/lib/engine/insight";
 import { listOpportunitiesSync, rankOpportunities } from "@/lib/engine/opportunities";
 import { computeHorizon, computePhases, progress, topPriorities } from "@/lib/engine/roadmap";
 import { analyseSkills } from "@/lib/engine/skills";
-import { allEventsSync, isUCL } from "@/lib/services/catalog";
+import { allEventsSync } from "@/lib/services/catalog";
+import { universitySources } from "@/data/universities";
 import { activityOf, useStay } from "@/lib/store";
 import type { CareerEvent, UserProfile } from "@/lib/types";
 import { todayISO } from "@/lib/utils";
@@ -79,26 +80,39 @@ export function useInsight(d: ReturnType<typeof useDerived>) {
 }
 
 /** Live events from public sources (server-cached). Empty array if unavailable. */
+export interface LiveSourceStatus {
+  label: string;
+  url: string;
+  status: "ok" | "none" | "blocked" | "disallowed" | "error";
+  count: number;
+  detail?: string;
+}
+
+/** Events read automatically from the university's public careers and union pages (server side, cached). */
 export function useLiveEvents(university: string) {
-  const [state, setState] = useState<{ events: CareerEvent[]; status: "idle" | "loading" | "ok" | "unavailable"; fetchedAt?: string; message?: string }>({
+  const known = Boolean(universitySources(university));
+  const [state, setState] = useState<{ key: string; events: CareerEvent[]; sources: LiveSourceStatus[]; status: "idle" | "loading" | "ok" | "unavailable"; fetchedAt?: string; message?: string }>({
+    key: "",
     events: [],
-    status: isUCL(university) ? "loading" : "idle",
+    sources: [],
+    status: "idle",
   });
   useEffect(() => {
-    if (!isUCL(university)) return;
+    if (!known) return;
     let cancelled = false;
-    fetch("/api/events/live?source=ucl-careers")
+    fetch(`/api/events/live?uni=${encodeURIComponent(university)}`)
       .then((r) => r.json())
-      .then((data: { events?: CareerEvent[]; fetchedAt?: string; message?: string }) => {
+      .then((data: { events?: CareerEvent[]; sources?: LiveSourceStatus[]; fetchedAt?: string; message?: string }) => {
         if (cancelled) return;
-        setState({ events: data.events ?? [], status: data.events?.length ? "ok" : "unavailable", fetchedAt: data.fetchedAt, message: data.message });
+        setState({ key: university, events: data.events ?? [], sources: data.sources ?? [], status: data.events?.length ? "ok" : "unavailable", fetchedAt: data.fetchedAt, message: data.message });
       })
-      .catch(() => !cancelled && setState({ events: [], status: "unavailable", message: "Couldn't reach the live source" }));
+      .catch(() => !cancelled && setState({ key: university, events: [], sources: [], status: "unavailable", message: "Couldn't reach STAY's server" }));
     return () => {
       cancelled = true;
     };
-  }, [university]);
-  return state;
+  }, [university, known]);
+  if (!known) return { key: university, events: [], sources: [], status: "idle" as const };
+  return state.key === university ? state : { key: university, events: [], sources: [], status: "loading" as const };
 }
 
 /** Live roles from the jobs connector (Adzuna). Stores results so saved/applied roles keep resolving. */
