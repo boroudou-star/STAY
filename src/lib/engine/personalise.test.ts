@@ -36,7 +36,7 @@ const ctx = (p: UserProfile) => ({
   profile: p,
   today: TODAY,
   opportunities: rankOpportunities(getDemoOpportunities(TODAY), p, TODAY),
-  events: rankEvents(allEventsSync([], [], TODAY, p.university), p, TODAY),
+  events: rankEvents(allEventsSync([], [], TODAY, { isDemo: p.isDemo }), p, TODAY),
 });
 const draft = (p: UserProfile, id: string) => generateDrafts(ctx(p)).find((d) => d.templateId === id);
 
@@ -90,9 +90,9 @@ describe("personalised roadmap", () => {
 });
 
 describe("any university", () => {
-  it("doesn't show UCL example events to students elsewhere", () => {
-    expect(allEventsSync([], [], TODAY, "University of Manchester")).toHaveLength(0);
-    expect(allEventsSync([], [], TODAY, "University College London").length).toBe(getDemoEvents(TODAY).length);
+  it("only shows fictional example events in the demo", () => {
+    expect(allEventsSync([], [], TODAY, { isDemo: false })).toHaveLength(0);
+    expect(allEventsSync([], [], TODAY, { isDemo: true }).length).toBe(getDemoEvents(TODAY).length);
     const { tasks } = buildRoadmap(priya(), [], [], undefined, [], TODAY);
     expect(tasks.some((t) => /UCL/.test(t.title))).toBe(false);
   });

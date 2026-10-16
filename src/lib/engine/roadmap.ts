@@ -1,6 +1,7 @@
 import { roleForTrack, TRACK_MAP } from "@/data/careers";
 import type { Activity, Challenge, ContactStatus, Priority, RoadmapPhase, RoadmapTask, ScoredEvent, ScoredOpportunity, StartingPoint, TaskCategory, UserProfile } from "@/lib/types";
 import { challengeLabel, joinList, paceFactor, withDefaults } from "@/lib/profile";
+import { universitySources } from "@/data/universities";
 import { addDays, addMonths, daysBetween, monthsBetween, parseISO, toISO, todayISO } from "@/lib/utils";
 import { analyseSkills, displaySkill } from "./skills";
 import { estimateGraduateRoute } from "./visa";
@@ -295,22 +296,41 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
     });
   }
 
-  // ---- Top opportunities → application tasks placed on (example) deadlines ----
+  // ---- Top matching programmes → application tasks ----
+  // Real programmes have no fixed deadline in STAY, so the date is a target to apply early, not the employer's deadline.
   ctx.opportunities
-    .filter((s) => s.eligible !== false && s.score >= 60 && s.opportunity.deadline)
+    .filter((s) => s.eligible !== false && s.score >= 60)
     .slice(0, 2)
-    .forEach((s) => {
+    .forEach((s, i) => {
       const o = s.opportunity;
+      const hasDeadline = Boolean(o.deadline);
       drafts.push({
         templateId: `opp-${o.id}`,
-        title: `Apply: ${o.title} at ${o.company}`,
-        description: `${s.fitSummary} Submit a few days before the closing date.`,
-        deadline: clamp(addDays(o.deadline!, -2)),
-        priority: daysBetween(today, o.deadline!) <= 14 ? "urgent" : "high",
+        title: `${hasDeadline ? "Apply" : "Check dates and apply"}: ${o.title} at ${o.company}`,
+        description: hasDeadline
+          ? `${s.fitSummary} Submit a few days before the closing date.`
+          : `${s.fitSummary} Open ${o.company}'s official page, note this year's dates, and aim to apply early: many programmes close when full. This is your target date, not their deadline.`,
+        deadline: hasDeadline ? clamp(addDays(o.deadline!, -2)) : at(14 + i * 7),
+        priority: hasDeadline && daysBetween(today, o.deadline!) <= 14 ? "urgent" : "high",
         category: "applications",
         sourceOpportunityId: o.id,
       });
     });
+
+  // ---- Your university's real careers and union pages ----
+  const uniSrc = universitySources(p.university);
+  {
+    drafts.push({
+      templateId: "uni-careers-events",
+      title: uniSrc ? `Book one event from ${uniSrc.careersEvents.label}` : `Book one careers event at ${p.university || "your university"}`,
+      description: uniSrc
+        ? `Pick a fair, employer talk or skills session linked to ${track.noun}${uniSrc.bookingPlatform ? `; book it through ${uniSrc.bookingPlatform.label}` : ""}. Campus Events in STAY links straight to it.`
+        : "Search your careers service's events page (Campus Events has search links) and book one fair, employer talk or skills session.",
+      deadline: at(10),
+      priority: "medium",
+      category: "events",
+    });
+  }
 
   if (isStudent) {
     if (p.university) {
@@ -318,7 +338,7 @@ export function generateDrafts(ctx: RoadmapContext): Draft[] {
         templateId: "societies-join",
         done: sp.inSocieties,
         title: `Join 2 societies linked to ${track.noun}`,
-        description: `Look for: ${track.societies.join(", ")}. Society workshops and hackathons often matter as much as official careers events.`,
+        description: `Look for: ${track.societies.join(", ")}${uniSrc?.societies || uniSrc?.unionEvents ? ` on ${(uniSrc.societies ?? uniSrc.unionEvents)!.label}` : ""}. Society workshops and hackathons often matter as much as official careers events.`,
         deadline: at(10),
         priority: "medium",
         category: "events",

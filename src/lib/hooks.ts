@@ -27,7 +27,7 @@ export function useDerived(liveEvents: CareerEvent[] = []) {
     const phases = computePhases(profile, horizon);
     const activity = activityOf({ savedOpps, appliedOpps, contacts, tasks, profile });
     const opportunities = rankOpportunities([...liveOpps, ...listOpportunitiesSync(today)], profile, today);
-    const events = rankEvents(allEventsSync(manualEvents, liveEvents, today, profile.university), profile, today, activity);
+    const events = rankEvents(allEventsSync(manualEvents, liveEvents, today, { isDemo: profile.isDemo }), profile, today, activity);
     const skills = analyseSkills(profile);
     return {
       profile,

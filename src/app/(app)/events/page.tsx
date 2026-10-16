@@ -3,7 +3,8 @@
 import { Bookmark, BookmarkCheck, CheckCircle2, Clock, ClipboardPaste, ExternalLink, Globe, Camera, Loader2, MapPin, Plus, Radio, Trash2, Wand2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { EVENT_SOURCES } from "@/data/events";
+import { getRealProgrammes } from "@/data/programmes";
+import { uniSearch, universitySources } from "@/data/universities";
 import { TRACK_MAP } from "@/data/careers";
 import { Badge, Button, Card, Chip, DemoBadge, EmptyState, Input, Label, LinkButton, LiveBadge, Modal, PageHeader, Select, Tabs, Textarea } from "@/components/ui";
 import { EVENT_CATEGORY_LABEL } from "@/lib/engine/events";
@@ -41,7 +42,6 @@ export default function EventsPage() {
 
   const cats = Array.from(new Set(d.events.map((e) => e.event.category)));
   const uni = profile.university || "your university";
-  const sources = isUCL(profile.university) ? EVENT_SOURCES.filter((s) => s.university === "UCL") : [];
 
   return (
     <div>
@@ -56,62 +56,7 @@ export default function EventsPage() {
         }
       />
 
-      {/* Sources */}
-      <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {isUCL(profile.university) ? (
-          sources.map((s) => (
-            <a
-              key={s.id}
-              href={s.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group rounded-2xl border border-line bg-card p-4 shadow-[var(--shadow-soft)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
-            >
-              <div className="flex items-center justify-between">
-                <Globe size={16} className="text-teal" />
-                {s.id === "src-ucl-careers" && live.status === "ok" ? (
-                  <LiveBadge label={`${live.events.length} live`} />
-                ) : s.id === "src-ucl-careers" && live.status === "loading" ? (
-                  <Badge>
-                    <Loader2 size={10} className="animate-spin" /> checking
-                  </Badge>
-                ) : (
-                  <ExternalLink size={14} className="text-muted group-hover:text-ink" />
-                )}
-              </div>
-              <div className="mt-2 text-[13.5px] font-semibold leading-snug">{s.name}</div>
-              <div className="mt-1 line-clamp-2 text-[12px] text-muted">{s.description}</div>
-            </a>
-          ))
-        ) : (
-          <div className="rounded-2xl border border-line bg-card p-4 text-[13px] text-ink-2 md:col-span-2 xl:col-span-4">
-            <div className="font-semibold text-ink">Find events at {uni}</div>
-            <p className="mt-1">
-              STAY doesn&apos;t have a live feed for {uni} yet. Search below, then paste any announcement (careers service email, society Instagram post, event page) and STAY turns it into a ranked event with a reason it matters to you.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                [`${uni} careers events`, `${uni} careers service events`],
-                [`${TRACK_MAP[profile.careerGoals[0] ?? "exploring"].noun} society`, `${uni} ${TRACK_MAP[profile.careerGoals[0] ?? "exploring"].noun} society`],
-                ["Careers fairs", `${uni} careers fair ${new Date().getFullYear()}`],
-                ...(profile.targetCompanies ?? []).slice(0, 2).map((c) => [`${c} student events`, `${c} graduate events UK`]),
-              ].map(([label, q]) => (
-                <a key={label} href={`https://www.google.com/search?q=${encodeURIComponent(q)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1 text-[12.5px] font-medium hover:border-ink/30">
-                  {label} <ExternalLink size={11} />
-                </a>
-              ))}
-              <button onClick={() => setPasteOpen(true)} className="inline-flex items-center gap-1 rounded-full bg-ink px-3 py-1 text-[12.5px] font-semibold text-white">
-                <ClipboardPaste size={12} /> Paste an announcement
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-      {isUCL(profile.university) && live.status === "unavailable" && (
-        <p className="-mt-3 mb-5 flex items-center gap-1.5 text-[12px] text-muted">
-          <Radio size={12} /> Live UCL Careers listings couldn&apos;t be loaded right now{live.message ? ` (${live.message})` : ""}. Showing demo events. Open the source links above for current listings.
-        </p>
-      )}
+      <UniversitySourcesPanel live={live} onPaste={() => setPasteOpen(true)} />
 
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <Tabs
@@ -175,6 +120,106 @@ export default function EventsPage() {
 
       <PasteModal open={pasteOpen} onClose={() => setPasteOpen(false)} university={profile.university} onSaved={() => setView("mine")} />
       {detail && <EventDetail s={detail} onClose={() => setDetail(null)} />}
+    </div>
+  );
+}
+
+/** Real pages for this student's university: careers events, fairs, booking, students' union and societies. */
+function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof useLiveEvents>; onPaste: () => void }) {
+  const profile = useStay((s) => s.profile)!;
+  const src = universitySources(profile.university);
+  const uni = src?.name ?? (profile.university || "your university");
+  const track = TRACK_MAP[profile.careerGoals[0] ?? "exploring"];
+  const links = src
+    ? [
+        { ...src.careersEvents, kind: "Careers events", live: isUCL(profile.university) },
+        src.careersFairs && { ...src.careersFairs, kind: "Careers fairs" },
+        src.bookingPlatform && { ...src.bookingPlatform, kind: "Book events" },
+        src.unionEvents && { ...src.unionEvents, kind: "Students' union" },
+        src.societies && { ...src.societies, kind: "Societies" },
+        src.international && profile.visa.needsSponsorship !== "no" && { ...src.international, kind: "International students" },
+      ].filter(Boolean) as { label: string; url: string; kind: string; live?: boolean }[]
+    : [];
+  // Employers with a page specifically for this university's students
+  const campus = getRealProgrammes()
+    .filter((o) => o.campusPages && src && o.campusPages[src.name])
+    .map((o) => ({ company: o.company, url: o.campusPages![src!.name] }))
+    .filter((x, i, arr) => arr.findIndex((y) => y.company === x.company) === i);
+  const searches: [string, string][] = [
+    ...(!src?.unionEvents && !src?.societies ? ([[`${uni} students' union events`, `${uni} students union events societies`]] as [string, string][]) : []),
+    [`${track.noun} society at ${uni}`, `${uni} ${track.societies[0]}`],
+    ...(profile.targetCompanies ?? []).slice(0, 2).map((c) => [`${c} student events`, `${c} graduate events UK`] as [string, string]),
+  ];
+  return (
+    <div className="mb-6 space-y-3">
+      {links.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {links.map((l) => (
+            <a
+              key={l.url}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group rounded-2xl border border-line bg-card p-4 shadow-[var(--shadow-soft)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-teal">
+                  <Globe size={13} /> {l.kind}
+                </span>
+                {l.live && live.status === "ok" ? (
+                  <LiveBadge label={`${live.events.length} live`} />
+                ) : l.live && live.status === "loading" ? (
+                  <Badge>
+                    <Loader2 size={10} className="animate-spin" /> checking
+                  </Badge>
+                ) : (
+                  <ExternalLink size={14} className="text-muted group-hover:text-ink" />
+                )}
+              </div>
+              <div className="mt-2 text-[13.5px] font-semibold leading-snug">{l.label}</div>
+              <div className="mt-1 truncate text-[11.5px] text-muted">{new URL(l.url).hostname.replace(/^www\./, "")}</div>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-line bg-card p-4 text-[13px] text-ink-2">
+          <div className="font-semibold text-ink">Find events at {uni}</div>
+          <p className="mt-1">STAY doesn&apos;t have verified links for {uni} yet. Search below, then paste any announcement and STAY turns it into a ranked event.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[[`${uni} careers events`, `${uni} careers service events`] as [string, string], [`${uni} careers fair`, `${uni} careers fair ${new Date().getFullYear()}`] as [string, string]].map(([label, q]) => (
+              <a key={label} href={uniSearch(q)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1 text-[12.5px] font-medium hover:border-ink/30">
+                {label} <ExternalLink size={11} />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      {campus.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="font-semibold">Employers with a page for {uni} students:</span>
+          {campus.map((c) => (
+            <a key={c.company} href={c.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-blue/20 bg-blue-soft px-3 py-1 font-medium text-blue hover:border-blue/40">
+              {c.company} <ExternalLink size={11} />
+            </a>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+        <span className="text-muted">Also search:</span>
+        {searches.map(([label, q]) => (
+          <a key={label} href={uniSearch(q)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1 font-medium hover:border-ink/30">
+            {label} <ExternalLink size={11} />
+          </a>
+        ))}
+        <button onClick={onPaste} className="inline-flex items-center gap-1 rounded-full bg-ink px-3 py-1 font-semibold text-white">
+          <ClipboardPaste size={12} /> Paste an announcement
+        </button>
+      </div>
+      {isUCL(profile.university) && live.status === "unavailable" && (
+        <p className="flex items-center gap-1.5 text-[12px] text-muted">
+          <Radio size={12} /> Live UCL Careers listings couldn&apos;t be loaded right now{live.message ? ` (${live.message})` : ""}. Open the links above for current events.
+        </p>
+      )}
     </div>
   );
 }

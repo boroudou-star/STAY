@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { aiAvailable, aiJSON } from "@/lib/ai";
+import { fromUclListing } from "@/lib/engine/ucl-events";
 import type { CareerEvent, CareerTrack, EventCategory } from "@/lib/types";
 
 /**
@@ -9,7 +10,8 @@ import type { CareerEvent, CareerTrack, EventCategory } from "@/lib/types";
  * - Caches for 6 hours to respect the site. Never invents events: if nothing can be parsed, returns [] and the UI links to the source.
  */
 
-const SOURCE_URL = "https://www.ucl.ac.uk/careers/events";
+const SOURCE_URL = "https://www.ucl.ac.uk/study/careers/ucl-careers/resources-and-services/come-event/upcoming-events";
+const SOURCE_PATH = "/study/careers/ucl-careers/resources-and-services/come-event/upcoming-events";
 const ROBOTS_URL = "https://www.ucl.ac.uk/robots.txt";
 const TTL_MS = 6 * 60 * 60 * 1000;
 const UA = "STAY-career-navigator/0.1 (student hackathon project; contact via repository)";
@@ -155,13 +157,14 @@ export async function GET() {
   let message: string | undefined;
   let events: CareerEvent[] = [];
   try {
-    if (!(await robotsAllows("/careers/events"))) {
+    if (!(await robotsAllows(SOURCE_PATH))) {
       message = "source not reachable or disallowed";
     } else {
       const res = await fetch(SOURCE_URL, { headers: { "User-Agent": UA, Accept: "text/html" }, signal: AbortSignal.timeout(10000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const html = await res.text();
       let raw = fromJsonLd(html);
+      if (!raw.length) raw = fromUclListing(html, today);
       if (!raw.length) raw = await fromAi(htmlToText(html), today);
       if (!raw.length) message = aiAvailable() ? "no structured events found" : "set ANTHROPIC_API_KEY to extract live listings";
       const now = new Date().toISOString();
@@ -177,7 +180,7 @@ export async function GET() {
             date: r.date,
             startTime: r.startTime ?? undefined,
             endTime: r.endTime ?? undefined,
-            location: r.location ?? "See listing",
+            location: r.location ?? "See the event page",
             format: /online|virtual|zoom|teams/i.test(r.location ?? "") ? "online" : "in_person",
             category: inferCategory(blob),
             description: r.description ?? "See the UCL Careers listing for details.",

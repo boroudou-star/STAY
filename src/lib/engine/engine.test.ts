@@ -121,10 +121,10 @@ describe("opportunity scoring", () => {
     expect(s.factors.find((f) => f.key === "deadline")?.detail).toMatch(/not verified/i);
   });
 
-  it("uses the minimum-salary preference", () => {
-    const opp = getDemoOpportunities(TODAY).find((o) => o.id === "opp-09")!; // £55,000 example
+  it("no longer scores salary (the question was removed)", () => {
+    const opp = getDemoOpportunities(TODAY).find((o) => o.id === "opp-09")!;
     const s = scoreOpportunity(opp, { ...alex(), minSalary: 60000 }, TODAY);
-    expect(s.factors.find((f) => f.key === "salary")?.status).toBe("gap");
+    expect(s.factors.find((f) => f.key === "salary")).toBeUndefined();
   });
 
   it("parses salaries", () => {

@@ -3,7 +3,7 @@
 AI career navigation for international students and recent graduates in the UK.
 STAY turns career ambitions into a personalised timeline, matched opportunities, campus events and coffee chats.
 
-> Hackathon MVP (Oct 2026). Demo listings and events are clearly labelled and are **not** real vacancies. Visa content is general information, not legal advice.
+> Hackathon MVP (Oct 2026). Opportunities are real UK programmes linked to official pages; the demo's example events are clearly labelled. Visa content is general information, not legal advice.
 
 ## Run it
 
@@ -36,9 +36,9 @@ Anyone can build their own plan at **Build my plan** (`/onboarding`, about 5 min
 | You | Name, studying or graduated, a one-line goal | Dashboard greeting and goal |
 | Studies | University (any UK university), subject, year, graduation | Timing of the whole plan; events and alumni searches |
 | Goals | Careers, roles, **target companies**, industries | Tasks, role scores (target companies boosted 🎯), insight areas, coffee chats, interview company |
-| Experience | Skills (tap-to-add suggestions for your field), experience, CV paste | Skill gaps, role scores, CV interview questions |
+| Experience | Skills (tap-to-add suggestions for your field), experience, **CV upload (PDF or Word .docx, read in the browser, never uploaded)** or paste | Skill gaps (skills found in the CV are added), role scores, CV interview questions |
 | Starting point | CV / LinkedIn / societies / outreach already done, applications and interviews so far, **what feels hardest**, **hours a week** | Done steps are pre-ticked, applications count towards goals, hard areas move up and come sooner, deadlines are paced to your hours |
-| Preferences | Cities, company and role types, minimum salary, priorities | Role ranking |
+| Preferences | Cities, company and role types, priorities | Role ranking |
 | Visa | Sponsorship, visa type and expiry (optional) | Sponsorship flags and visa milestones |
 | Review | Every answer with Edit links and a plain-English "how STAY will tailor your plan" | |
 
@@ -67,8 +67,8 @@ Anyone can build their own plan at **Build my plan** (`/onboarding`, about 5 min
 | Area | Source |
 |---|---|
 | Roadmap, scoring, priorities | Deterministic engine (`src/lib/engine`) — works offline |
-| Opportunities | 20 fictional demo listings + live Adzuna roles when keys are set (`/api/opportunities/live`, 1h cache; unverified fields shown as "Not verified") + links to live searches (LinkedIn Jobs, Prospects, GOV.UK Find a job) |
-| Campus events | Demo events + user-pasted announcements + live UCL Careers fetch (`/api/events/live`, 6h cache, robots.txt checked; parsed via JSON-LD or Claude) |
+| Opportunities | **Real UK programmes** (`src/data/programmes.ts`): about 65 internships, placements, spring insights and graduate schemes across every career area, including pharma and biotech (AstraZeneca, GSK, Pfizer, Roche, MSD) and healthcare consulting (L.E.K., ClearView, ZS, IQVIA, Deloitte, NHS Graduate Management Training Scheme). Each links to the employer's official page, checked on 16 Oct 2026. No invented deadlines or salaries; visa notes quote the employer's own pages. Matched on stage (first year, penultimate, final year or graduate, placement year, PhD). Plus live Adzuna vacancies when keys are set and job-board searches |
+| Campus events | **Real pages for ~55 UK universities** (`src/data/universities.ts`): careers service events and fairs, booking platform, students' union events, societies and (UCL) international student events, each checked on 16 Oct 2026; employers' campus pages (e.g. BCG at UCL/King's). Live UCL Careers listings (`/api/events/live`, 6h cache, robots.txt checked). User-pasted announcements. Fictional example events appear only in the demo |
 | Industry insights | Live Google News RSS headlines + Apple Podcasts search (`/api/insights/feed`, 1h cache) + STAY-written primers; falls back to search links if offline |
 | Interview prep | Question bank, cases and rubric scoring work offline; AI adds tailored questions, richer feedback and a live case interviewer |
 | Coffee chats | 5 real LinkedIn people-search URLs per profile (+ UCL's LinkedIn alumni tool) + user-added contacts. No invented people, nothing auto-sent |
@@ -110,7 +110,7 @@ STAY reacts to what you do, using deterministic rules (`src/lib/engine/roadmap.t
 - **Finish CV / project / skill tasks** → next-step tasks (CV review, project showcase, prove-it-in-public).
 - **Change goals or preferences** → roadmap rebuilt, opportunities and events re-ranked; completed tasks and user-edited dates are always kept.
 - **Insights & interviews** → 5 reflections auto-tick "Build commercial awareness"; 3 mock interviews auto-tick "Run 3 mock interviews"; saving/applying to a role adds "Practise a company mock interview"; Insights company dossiers and Opportunity cards link straight into Interview Prep for that company.
-- **Scoring** also uses role types, company types, minimum salary and your priority sliders (weights are shown in "Why X%?").
+- **Scoring** also uses role types, company types and your priority sliders (weights are shown in "Why X%?").
 
 ## Project structure
 

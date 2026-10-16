@@ -39,6 +39,8 @@ export interface Experience {
   volunteering: string;
   certifications: string;
   cvText: string;
+  /** Name of the uploaded CV file, if it came from a file */
+  cvFileName?: string;
 }
 
 /** What the user finds hardest right now. Moves the matching parts of the plan up. */
@@ -76,6 +78,7 @@ export interface UserProfile {
   willingToRelocate: boolean;
   companyTypes: string[]; // "startup" | "big tech" | ...
   roleTypes: string[]; // "graduate scheme" | "internship" | ...
+  /** No longer asked; kept so older saves still load */
   minSalary?: number;
   priorities: Priorities;
   visa: {
@@ -137,7 +140,11 @@ export type OpportunityType =
   | "research_placement"
   | "industrial_project"
   | "graduate_scheme"
-  | "entry_level";
+  | "entry_level"
+  | "placement_year";
+
+/** Who a programme is usually aimed at, used for stage fit (not a hard rule). */
+export type ProgrammeStage = "first_year" | "penultimate" | "placement_year" | "final_or_graduate" | "any_student" | "phd";
 
 export type SponsorshipStatus = "offered" | "not_offered" | "not_verified";
 
@@ -168,11 +175,20 @@ export interface Opportunity {
   verifiedAt?: string;
   isDemo: boolean;
   /** "Skills mentioned in listing" when extracted from a live description rather than a structured spec */
-  skillsSource?: "structured" | "description";
+  skillsSource?: "structured" | "description" | "typical";
   /** What each skill is used for in THIS role (keyed by skill name) */
   skillContext?: Record<string, string>;
   /** What you'd actually do in the role */
   responsibilities?: string[];
+  /** Real programmes: who it's usually for */
+  stage?: ProgrammeStage;
+  /** Real programmes: what the employer's own pages say about visas, quoted or closely paraphrased */
+  visaNote?: string;
+  visaSource?: string;
+  /** Real programmes: anything else verified from the official page (dates, eligibility) */
+  verifiedNote?: string;
+  /** Employer pages specific to a university, keyed by university name */
+  campusPages?: Record<string, string>;
 }
 
 export type CompanyType = "Big tech" | "Startups / scale-ups" | "Consultancies" | "Banks & finance" | "Public sector / NHS" | "Research labs";

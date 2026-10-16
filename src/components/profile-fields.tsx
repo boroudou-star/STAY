@@ -1,10 +1,11 @@
 "use client";
 
-import { Check, FileText, GraduationCap, Loader2, Plus, School, ShieldCheck, Wand2, X } from "lucide-react";
+import { Check, FileText, GraduationCap, Loader2, Plus, School, ShieldCheck, Upload, Wand2, X } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { CHALLENGES, COMPANY_SUGGESTIONS, COMPANY_TYPES, INDUSTRY_SUGGESTIONS, PRO_SKILL_SUGGESTIONS, ROLE_TYPES, TRACK_MAP, TRACKS, UK_CITIES, UNIVERSITIES } from "@/data/careers";
-import { Button, Chip, Input, Label, Select, Textarea } from "@/components/ui";
+import { Button, buttonClass, Chip, Input, Label, Select, Textarea } from "@/components/ui";
+import { CV_ACCEPT, CvFileError, readCvFile } from "@/lib/cv-file";
 import { extractSkillsFromText } from "@/lib/engine/cv";
 import { estimateGraduateRoute } from "@/lib/engine/visa";
 import { EMPTY_START, monthToDate, paceLabel, withDefaults } from "@/lib/profile";
@@ -303,28 +304,35 @@ const EXPERIENCE_FIELDS: [keyof Experience, string, string][] = [
 export function SkillsFields({ p, update, compact }: SectionProps & { compact?: boolean }) {
   const id = useId();
   const [extracting, setExtracting] = useState(false);
+  const [showText, setShowText] = useState(false);
   const techSuggestions = uniq((p.careerGoals.length ? p.careerGoals : (["exploring"] as const)).flatMap((t) => TRACK_MAP[t].coreSkills));
   const setExp = (patch: Partial<Experience>) => update({ experience: { ...p.experience, ...patch } });
 
-  const extract = async () => {
-    if (!p.experience.cvText.trim()) return toast.error("Paste your CV text first");
-    setExtracting(true);
-    let skills = extractSkillsFromText(p.experience.cvText);
-    try {
-      const res = await fetch("/api/ai/cv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cvText: p.experience.cvText }) });
-      if (res.ok) {
-        const data = (await res.json()) as { skills?: string[] };
-        if (data.skills?.length) skills = uniq([...skills, ...data.skills]);
-      }
-    } catch {
-      /* local extraction only */
-    }
-    const before = p.technicalSkills.length;
-    const merged = uniq([...p.technicalSkills, ...skills]).slice(0, 25);
-    update({ technicalSkills: merged });
-    setExtracting(false);
-    const added = merged.length - before;
+  /** Adds skills explicitly mentioned in the CV text. Runs on this device only. */
+  const pullSkills = (text: string, base: Partial<UserProfile> = {}) => {
+    const found = extractSkillsFromText(text);
+    const merged = uniq([...p.technicalSkills, ...found]).slice(0, 25);
+    update({ ...base, technicalSkills: merged });
+    return merged.length - p.technicalSkills.length;
+  };
+
+  const extract = () => {
+    if (!p.experience.cvText.trim()) return toast.error("Upload or paste your CV first");
+    const added = pullSkills(p.experience.cvText);
     toast.success(added ? `Added ${added} skill${added === 1 ? "" : "s"} found in your CV` : "No new skills found. Add them above");
+  };
+
+  const upload = async (file: File) => {
+    setExtracting(true);
+    try {
+      const text = await readCvFile(file);
+      const added = pullSkills(text, { experience: { ...p.experience, cvText: text, cvFileName: file.name } });
+      toast.success(`Read ${file.name}`, { description: added ? `Added ${added} skill${added === 1 ? "" : "s"} it mentions. Check them above.` : "Check the text below and add any skills it missed." });
+    } catch (e) {
+      toast.error(e instanceof CvFileError ? e.message : "We couldn't read that file. Try a PDF or .docx, or paste the text instead.");
+    } finally {
+      setExtracting(false);
+    }
   };
 
   return (
@@ -342,17 +350,58 @@ export function SkillsFields({ p, update, compact }: SectionProps & { compact?: 
           </Field>
         ))}
       </div>
-      <div className="rounded-3xl border border-dashed border-line bg-paper p-5">
-        <label htmlFor={`${id}-cv`} className="mb-2 flex items-center gap-2 font-semibold">
-          <FileText size={18} /> Paste your CV <span className="text-[13px] font-normal text-muted">(optional, recommended)</span>
-        </label>
-        <Textarea id={`${id}-cv`} placeholder="Copy everything from your CV document and paste it here…" value={p.experience.cvText} onChange={(e) => setExp({ cvText: e.target.value })} className="min-h-28 bg-white" />
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Button type="button" variant="secondary" size="sm" onClick={extract} disabled={extracting}>
-            {extracting ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />} Pull skills from my CV
-          </Button>
-          <span className="text-[12px] text-muted">Interview Prep uses it to ask about your own experience. It stays on this device.</span>
+      <div
+        className="rounded-3xl border border-dashed border-line bg-paper p-5"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const f = e.dataTransfer.files?.[0];
+          if (f) upload(f);
+        }}
+      >
+        <div className="mb-1 flex items-center gap-2 font-semibold">
+          <FileText size={18} /> Your CV <span className="text-[13px] font-normal text-muted">(optional, recommended)</span>
         </div>
+        <p className="mb-3 text-[12.5px] text-muted">Upload a PDF or Word (.docx) file, or drag it here. It&apos;s read on this device and never uploaded. Interview Prep uses it to ask about your own experience.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className={cn(buttonClass("primary", "sm"), "cursor-pointer", extracting && "pointer-events-none opacity-60")}>
+            {extracting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} {p.experience.cvText ? "Upload a new CV" : "Upload CV"}
+            <input
+              type="file"
+              accept={CV_ACCEPT}
+              className="sr-only"
+              aria-label="Upload CV file"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) upload(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {p.experience.cvFileName && p.experience.cvText && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-soft px-3 py-1 text-[12.5px] font-medium text-teal">
+              <Check size={13} /> {p.experience.cvFileName}
+            </span>
+          )}
+          <button type="button" onClick={() => setShowText(!showText)} className="text-[12.5px] font-semibold text-blue hover:underline">
+            {showText ? "Hide text" : p.experience.cvText ? "Check or edit the text" : "Paste text instead"}
+          </button>
+        </div>
+        {showText && (
+          <>
+            <Textarea
+              id={`${id}-cv`}
+              aria-label="CV text"
+              placeholder="Copy everything from your CV document and paste it here…"
+              value={p.experience.cvText}
+              onChange={(e) => setExp({ cvText: e.target.value, cvFileName: e.target.value ? p.experience.cvFileName : undefined })}
+              className="mt-3 min-h-40 bg-white"
+            />
+            <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={extract}>
+              <Wand2 size={14} /> Pull skills from this text
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -430,7 +479,6 @@ export function StartingPointFields({ p: raw, update }: SectionProps) {
 }
 
 const PRIORITY_LABELS = [
-  ["salary", "Salary"],
   ["growth", "Career growth"],
   ["workLife", "Work-life balance"],
   ["technical", "Interesting, technical work"],
@@ -438,7 +486,6 @@ const PRIORITY_LABELS = [
 ] as const;
 
 export function PreferenceFields({ p, update }: SectionProps) {
-  const id = useId();
   const toggle = (list: string[], x: string) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
   return (
     <div className="space-y-5">
@@ -476,9 +523,6 @@ export function PreferenceFields({ p, update }: SectionProps) {
           ))}
         </div>
       </div>
-      <Field label="Minimum salary" hint="(optional, £ per year)" htmlFor={`${id}-salary`} className="max-w-xs">
-        <Input id={`${id}-salary`} type="number" min={0} step={1000} placeholder="e.g. 30000" value={p.minSalary ?? ""} onChange={(e) => update({ minSalary: e.target.value ? Number(e.target.value) : undefined })} />
-      </Field>
       <div>
         <Label>How much does each of these matter to you?</Label>
         <div className="grid gap-3 sm:grid-cols-2">

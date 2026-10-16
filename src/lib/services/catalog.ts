@@ -12,10 +12,13 @@ import { todayISO } from "@/lib/utils";
  */
 export { isUCL };
 
-/** Example events are UCL-based, so they're only shown to UCL students (and the demo). */
-export function allEventsSync(manual: CareerEvent[], live: CareerEvent[] = [], today = todayISO(), university?: string) {
+/**
+ * Real users only see real events: live listings and ones they add. The fictional example events
+ * are kept for the demo profile only.
+ */
+export function allEventsSync(manual: CareerEvent[], live: CareerEvent[] = [], today = todayISO(), opts: { isDemo?: boolean } = {}) {
   void DemoEventProvider; // provider interface lives in engine/events.ts
-  const examples = !university || isUCL(university) ? getDemoEvents(today) : [];
+  const examples = opts.isDemo ? getDemoEvents(today) : [];
   return [...live, ...manual, ...examples];
 }
 
@@ -28,7 +31,7 @@ export function buildRoadmap(
   today = todayISO(),
 ) {
   const opportunities = rankOpportunities([...liveOpportunities, ...listOpportunitiesSync(today)], profile, today);
-  const events = rankEvents(allEventsSync(manualEvents, [], today, profile.university), profile, today, activity);
+  const events = rankEvents(allEventsSync(manualEvents, [], today, { isDemo: profile.isDemo }), profile, today, activity);
   const drafts = generateDrafts({ profile, today, opportunities, events, activity });
   return mergeRoadmap(existing, drafts);
 }

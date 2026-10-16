@@ -1,4 +1,5 @@
 import type { CareerTrack, Challenge } from "@/lib/types";
+import { UNIVERSITY_SOURCES } from "./universities";
 
 export interface TrackInfo {
   id: CareerTrack;
@@ -319,19 +320,9 @@ export const PROJECT_IDEAS: ProjectIdea[] = [
 
 export const UK_CITIES = ["London", "Manchester", "Cambridge", "Oxford", "Edinburgh", "Bristol", "Birmingham", "Leeds", "Glasgow", "Nottingham", "Sheffield", "Newcastle", "Cardiff", "Belfast", "Remote (UK)"];
 export const COMPANY_TYPES = ["Big tech", "Startups / scale-ups", "Consultancies", "Banks & finance", "Public sector / NHS", "Research labs", "Any"];
-export const ROLE_TYPES = ["Graduate scheme", "Summer internship", "Off-cycle internship", "Research placement", "Entry-level job", "Part-time / project"];
-/** Suggestions only: users can type any university. */
-export const UNIVERSITIES = [
-  "UCL", "Imperial College London", "King's College London", "London School of Economics (LSE)", "Queen Mary University of London", "City St George's, University of London",
-  "Royal Holloway, University of London", "SOAS University of London", "Birkbeck, University of London", "Goldsmiths, University of London", "University of Westminster",
-  "Brunel University of London", "University of Greenwich", "University of Oxford", "University of Cambridge", "University of Edinburgh", "University of Glasgow",
-  "University of St Andrews", "University of Manchester", "University of Birmingham", "University of Bristol", "University of Warwick", "University of Leeds",
-  "University of Sheffield", "University of Nottingham", "University of Southampton", "Durham University", "University of Exeter", "University of Bath",
-  "University of York", "Lancaster University", "Loughborough University", "Newcastle University", "University of Liverpool", "Cardiff University",
-  "Queen's University Belfast", "University of Surrey", "University of Sussex", "University of Leicester", "University of Reading", "Heriot-Watt University",
-  "University of Strathclyde", "University of Aberdeen", "University of Dundee", "Coventry University", "Manchester Metropolitan University", "Nottingham Trent University",
-  "Oxford Brookes University", "Ulster University", "Swansea University", "Aston University", "University of East Anglia", "University of Kent",
-];
+export const ROLE_TYPES = ["Spring insight", "Summer internship", "Placement year", "Graduate scheme", "Off-cycle internship", "Research placement", "Entry-level job", "Part-time / project"];
+/** Suggestions only: users can type any university. These are the ones with verified careers and union links. */
+export const UNIVERSITIES = UNIVERSITY_SOURCES.map((u) => u.name);
 
 /** Well-known UK employers per track, offered as tap-to-add suggestions for target companies. */
 export const COMPANY_SUGGESTIONS: Record<CareerTrack, string[]> = {

@@ -32,7 +32,6 @@ export function demoProfile(now = new Date().toISOString()): UserProfile {
     willingToRelocate: false,
     companyTypes: ["Big tech", "Startups / scale-ups"],
     roleTypes: ["Graduate scheme", "Entry-level job", "Off-cycle internship"],
-    minSalary: undefined,
     priorities: { salary: 3, growth: 5, workLife: 3, technical: 5, security: 4 },
     visa: {
       skipped: false,

@@ -1,6 +1,7 @@
 import { canonicalSkill, TRACK_MAP } from "@/data/careers";
-import { getDemoOpportunities } from "@/data/opportunities";
-import type { MatchFactor, Opportunity, ScoredOpportunity, UserProfile } from "@/lib/types";
+import { universitySources } from "@/data/universities";
+import { getRealProgrammes, STAGE_NOTE, TYPICAL_WINDOW } from "@/data/programmes";
+import type { MatchFactor, Opportunity, ProgrammeStage, ScoredOpportunity, UserProfile } from "@/lib/types";
 import { daysBetween, todayISO } from "@/lib/utils";
 import { displaySkill, userSkills } from "./skills";
 
@@ -15,15 +16,51 @@ export interface OpportunityProvider {
   list(today: string): Promise<Opportunity[]> | Opportunity[];
 }
 
-export const DemoOpportunityProvider: OpportunityProvider = {
-  id: "demo",
-  label: "STAY demo listings",
+/** Real UK programmes from employers' official careers pages (src/data/programmes.ts). */
+export const RealProgrammeProvider: OpportunityProvider = {
+  id: "programmes",
+  label: "Real UK programmes",
   isLive: false,
-  list: (today) => getDemoOpportunities(today),
+  list: () => getRealProgrammes(),
 };
 
-// Future: AdzunaProvider, ReedProvider, UniversityJobBoardProvider ...
-export const OPPORTUNITY_PROVIDERS: OpportunityProvider[] = [DemoOpportunityProvider];
+// Live vacancies (Adzuna) are merged in separately when API keys are set.
+export const OPPORTUNITY_PROVIDERS: OpportunityProvider[] = [RealProgrammeProvider];
+
+/**
+ * Whether a programme's usual audience matches the user. Programmes recruit about a year ahead:
+ * from August, applications are for programmes that run or start the following year.
+ */
+export function stageFit(stage: ProgrammeStage, p: UserProfile, today = todayISO()): { fit: boolean | "unknown"; detail: string } {
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7));
+  const cycle = m >= 8 ? y + 1 : y;
+  const grad = Number(p.graduationDate.slice(0, 4));
+  const student = p.studyStatus === "student";
+  const note = STAGE_NOTE[stage];
+  const yes = (why: string) => ({ fit: true as const, detail: `${note}. ${why}` });
+  const no = (why: string) => ({ fit: false as const, detail: `${note}. ${why}` });
+  const maybe = (why: string) => ({ fit: "unknown" as const, detail: `${note}. ${why}` });
+  switch (stage) {
+    case "first_year":
+      return student && grad >= cycle + 2 ? yes(`You graduate in ${grad}, so you're early enough.`) : no(`You graduate in ${grad}, so this is probably too early-stage for you.`);
+    case "penultimate":
+      if (student && grad === cycle + 1) return yes(`You graduate in ${grad}, so ${cycle}'s programme fits.`);
+      if (student && p.degreeLevel === "masters" && grad === cycle) return maybe("Some programmes accept master's students; check the eligibility.");
+      return no(student && grad > cycle + 1 ? `You graduate in ${grad}; aim for this in ${grad - 2}.` : `You graduate in ${grad}, so look at graduate schemes instead.`);
+    case "placement_year":
+      return student && grad >= cycle + 2 ? yes("Your course leaves room for a placement year.") : maybe("Only possible if your degree includes or allows a placement year.");
+    case "final_or_graduate":
+      if (student && grad <= cycle) return yes(`You graduate in ${grad}, so this is the right time to apply.`);
+      if (!student && grad >= y - 3) return yes(`You graduated in ${grad}.`);
+      if (student) return no(`You graduate in ${grad}; apply in the autumn of ${grad - 1}.`);
+      return maybe("Some schemes limit how long ago you graduated; check the page.");
+    case "phd":
+      return p.degreeLevel === "phd" ? yes("You're doing a PhD.") : no("Your profile isn't a PhD.");
+    default:
+      return student ? yes("You're a current student.") : maybe("Check whether graduates can apply.");
+  }
+}
 
 export function listOpportunitiesSync(today = todayISO()): Opportunity[] {
   return OPPORTUNITY_PROVIDERS.flatMap((p) => {
@@ -37,6 +74,7 @@ export function listOpportunitiesSync(today = todayISO()): Opportunity[] {
 /* ------------------------------------------------------------------ */
 
 export const OPPORTUNITY_TYPE_LABEL: Record<Opportunity["type"], string> = {
+  placement_year: "Placement year",
   summer_internship: "Summer internship",
   off_cycle_internship: "Off-cycle internship",
   spring_insight: "Spring insight",
@@ -60,11 +98,13 @@ const WEIGHTS = {
 /** Onboarding role-type labels → opportunity types */
 export const ROLE_TYPE_MAP: Record<string, Opportunity["type"][]> = {
   "Graduate scheme": ["graduate_scheme"],
-  "Summer internship": ["summer_internship", "spring_insight"],
+  "Summer internship": ["summer_internship"],
+  "Spring insight": ["spring_insight"],
   "Off-cycle internship": ["off_cycle_internship"],
-  "Research placement": ["research_placement"],
+  "Research placement": ["research_placement", "placement_year"],
   "Entry-level job": ["entry_level"],
   "Part-time / project": ["industrial_project"],
+  "Placement year": ["placement_year"],
 };
 
 /** First £ figure in a salary string, per year. Monthly figures are annualised. */
@@ -121,12 +161,12 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
   const skillScore = o.skillsRequired.length ? matched.length / o.skillsRequired.length : 0.6;
   factors.push({
     key: "skills",
-    label: fromDesc ? "Skills mentioned in listing" : "Required skills",
+    label: fromDesc ? "Skills mentioned in listing" : o.skillsSource === "typical" ? "Typical skills for this role" : "Required skills",
     weight: WEIGHTS.skills,
     score: skillScore,
     status: !o.skillsRequired.length ? "unknown" : skillScore >= 0.75 ? "good" : skillScore >= 0.4 ? "partial" : "gap",
     detail: o.skillsRequired.length
-      ? `You've shown ${matched.length} of ${o.skillsRequired.length} ${fromDesc ? "skills mentioned in the listing" : "listed skills"}${missing.length ? `, missing ${missing.join(", ")}` : ""}`
+      ? `You've shown ${matched.length} of ${o.skillsRequired.length} ${fromDesc ? "skills mentioned in the listing" : o.skillsSource === "typical" ? "skills typically asked for in this kind of role" : "listed skills"}${missing.length ? `, missing ${missing.join(", ")}` : ""}`
       : "No specific skills found in the listing, not verified",
   });
 
@@ -178,15 +218,23 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
     gradDetail = eligible
       ? `Your graduation (${grad}) fits: ${o.eligibility.note}`
       : `Likely not eligible: ${o.eligibility.note}; you graduate ${grad}`;
+  } else if (o.stage) {
+    const sf = stageFit(o.stage, p, today);
+    eligible = sf.fit;
+    gradScore = sf.fit === true ? 1 : sf.fit === false ? 0 : 0.6;
+    gradDetail = sf.detail;
   }
   factors.push({
     key: "graduation",
-    label: "Graduation eligibility",
+    label: o.stage ? "Stage fit" : "Graduation eligibility",
     weight: WEIGHTS.graduation,
     score: gradScore,
     status: eligible === true ? "good" : eligible === false ? "blocker" : "unknown",
     detail: gradDetail,
   });
+  if (o.stage && o.campusPages && Object.keys(o.campusPages).some((u) => sameUni(u, p.university))) {
+    factors.push({ key: "campus", label: "Recruits at your university", weight: 0.04, score: 1, status: "good", detail: `${o.company} has a page for ${p.university} students` });
+  }
 
   // Visa / sponsorship
   const needs = !p.visa.skipped && p.visa.needsSponsorship === "yes";
@@ -206,12 +254,14 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
       visaDetail = "Sponsorship not verified. Ask the employer directly";
     }
   }
+  // The employer's own words beat our generic line
+  if (o.visaNote && !p.visa.skipped && p.visa.needsSponsorship !== "no") visaDetail = o.visaNote;
   factors.push({ key: "visa", label: "Visa / sponsorship", weight: WEIGHTS.visa, score: visaScore, status: visaStatus, detail: visaDetail });
 
   // Deadline
   let dlScore = 0.7;
   let dlStatus: MatchFactor["status"] = "unknown";
-  let dlDetail = "Deadline not verified";
+  let dlDetail = o.stage ? `${TYPICAL_WINDOW[o.type]}. Check the official page for this year's dates.` : "Deadline not verified";
   if (o.deadline) {
     const d = daysBetween(today, o.deadline);
     if (d < 0) {
@@ -257,29 +307,11 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
   if (target) {
     factors.push({ key: "target", label: "Target company", weight: 0.08, score: 1, status: "good", detail: `${o.company} is one of your target companies` });
   }
-  const salaryNum = parseSalary(o.salary);
-  if (p.minSalary) {
-    const ex = o.isDemo ? " (example figure)" : "";
-    factors.push({
-      key: "salary",
-      label: "Salary vs your minimum",
-      weight: 0.05,
-      score: salaryNum === null ? 0.6 : salaryNum >= p.minSalary ? 1 : 0.25,
-      status: salaryNum === null ? "unknown" : salaryNum >= p.minSalary ? "good" : "gap",
-      detail:
-        salaryNum === null
-          ? "Salary not verified"
-          : salaryNum >= p.minSalary
-            ? `£${salaryNum.toLocaleString("en-GB")}${ex} meets your £${p.minSalary.toLocaleString("en-GB")} minimum`
-            : `£${salaryNum.toLocaleString("en-GB")}${ex} is below your £${p.minSalary.toLocaleString("en-GB")} minimum`,
-    });
-  }
 
   // Priorities nudge the weights (1–5 sliders from onboarding); weights are then normalised.
   const mult: Record<string, number> = {
     skills: 0.8 + p.priorities.technical * 0.08,
     role: 0.8 + p.priorities.technical * 0.04 + p.priorities.growth * 0.04,
-    salary: 0.5 + p.priorities.salary * 0.2,
     roleType: 0.7 + p.priorities.security * 0.1,
     companyType: 0.7 + p.priorities.workLife * 0.06 + p.priorities.growth * 0.04,
   };
@@ -296,7 +328,8 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
   if (target) fitBits.push(`${o.company} is on your target list`);
   if (trackHits.length) fitBits.push(`fits your ${TRACK_MAP[trackHits[0]].noun} goal`);
   if (matched.length) fitBits.push(`you already show ${matched.slice(0, 3).join(", ")}`);
-  if (missing.length) fitBits.push(`building ${missing.slice(0, 2).map((m) => displaySkill(canonicalSkill(m))).join(" and ")} would strengthen it`);
+  const toBuild = [...new Set(missing.map((m) => displaySkill(canonicalSkill(m))))].slice(0, 2);
+  if (toBuild.length) fitBits.push(`building ${toBuild.join(" and ")} would strengthen it`);
   const fitSummary =
     eligible === false
       ? `Probably not for you right now: ${o.eligibility.note.toLowerCase()}.`
@@ -305,6 +338,10 @@ export function scoreOpportunity(o: Opportunity, p: UserProfile, today = todayIS
         : "Limited overlap with your current profile.";
 
   return { opportunity: o, score, factors, missingSkills: missing, matchedSkills: matched, eligible, fitSummary };
+}
+
+function sameUni(a: string, b: string) {
+  return universitySources(a)?.name === universitySources(b)?.name && Boolean(universitySources(b));
 }
 
 /** "Google" matches "Google DeepMind" and the other way round. Case-insensitive. */

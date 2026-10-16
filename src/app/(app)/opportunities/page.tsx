@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { liveJobSearches } from "@/data/opportunities";
 import { SKILL_GUIDES, canonicalSkill, DEFAULT_GUIDE, roleForTrack, TRACK_MAP } from "@/data/careers";
 import { Badge, Button, Card, Chip, DemoBadge, EmptyState, Input, LinkButton, LiveBadge, Modal, PageHeader, Tabs } from "@/components/ui";
+import { TYPICAL_WINDOW } from "@/data/programmes";
 import { OPPORTUNITY_TYPE_LABEL } from "@/lib/engine/opportunities";
 import { hasSkill, userSkills } from "@/lib/engine/skills";
 import { ResourceList } from "@/components/resource-list";
@@ -40,7 +41,7 @@ export default function OpportunitiesPage() {
     if (view === "applied") l = l.filter((s) => appliedOpps[s.opportunity.id]);
     if (view === "recommended" && !showIneligible) l = l.filter((s) => s.eligible !== false);
     if (type) l = l.filter((s) => s.opportunity.type === type);
-    if (source !== "all") l = l.filter((s) => (source === "demo" ? s.opportunity.isDemo : !s.opportunity.isDemo));
+    if (source !== "all") l = l.filter((s) => (source === "demo" ? Boolean(s.opportunity.stage || s.opportunity.isDemo) : !s.opportunity.stage && !s.opportunity.isDemo));
     if (q.trim()) {
       const n = q.toLowerCase();
       l = l.filter((s) => `${s.opportunity.title} ${s.opportunity.company} ${s.opportunity.location} ${s.opportunity.skillsRequired.join(" ")}`.toLowerCase().includes(n));
@@ -48,6 +49,7 @@ export default function OpportunitiesPage() {
     return l;
   }, [d.opportunities, view, savedOpps, appliedOpps, showIneligible, type, q, source]);
   const hiddenIneligible = d.opportunities.filter((s) => s.eligible === false).length;
+  const programmeCount = d.opportunities.filter((s) => s.opportunity.stage).length;
 
   return (
     <div>
@@ -59,16 +61,16 @@ export default function OpportunitiesPage() {
 
       <div className="mb-5 flex flex-col gap-3 rounded-3xl border border-dashed border-ink/20 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3 text-[13.5px] text-ink-2">
-          {live.status === "ok" ? <LiveBadge className="mt-0.5 shrink-0" label={`${live.count} live`} /> : <DemoBadge className="mt-0.5 shrink-0" />}
+          {live.status === "ok" ? <LiveBadge className="mt-0.5 shrink-0" label={`${live.count} live`} /> : <Badge tone="teal" className="mt-0.5 shrink-0">✓ Real</Badge>}
           <span>
             {live.status === "ok" ? (
               <>
-                <b>{live.count} live roles</b> from Adzuna for &ldquo;{keyword}&rdquo; in {city}, scored with the same engine, plus <b>fictional demo listings</b> (labelled) that show the full matching.
+                <b>{live.count} live vacancies</b> from Adzuna for &ldquo;{keyword}&rdquo; in {city}, plus <b>{programmeCount} real UK programmes</b> from employers&apos; official careers pages, all scored for you.
               </>
             ) : (
               <>
-                Listings below are <b>fictional examples</b> showing how matching works, not real vacancies.{" "}
-                {live.status === "off" ? "Add Adzuna API keys to pull live roles into the same scoring engine." : live.status === "loading" ? "Checking for live roles…" : "Live roles are unavailable right now."}
+                <b>{programmeCount} real UK programmes</b> from employers&apos; official careers pages, ranked for you. Dates change every year, so each links to the official page rather than showing a made-up deadline.{" "}
+                {live.status === "off" ? "For live vacancies too, use the job-board searches here." : live.status === "loading" ? "Checking for live vacancies…" : "Live vacancies are unavailable right now; use the job-board searches."}
               </>
             )}
           </span>
@@ -120,7 +122,7 @@ export default function OpportunitiesPage() {
           <>
             {(["all", "live", "demo"] as const).map((v) => (
               <Chip key={v} active={source === v} onClick={() => setSource(v)}>
-                {v === "all" ? "All sources" : v === "live" ? "🟢 Live" : "Demo"}
+                {v === "all" ? "All sources" : v === "live" ? "🟢 Live vacancies" : "Real programmes"}
               </Chip>
             ))}
             <span className="mx-1 w-px shrink-0 bg-line" />
@@ -190,7 +192,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge tone="violet">{OPPORTUNITY_TYPE_LABEL[o.type]}</Badge>
-            {o.isDemo ? <DemoBadge /> : <LiveBadge label={o.sourceName} />}
+            {o.isDemo ? <DemoBadge /> : o.stage ? <Badge tone="teal">✓ Real programme</Badge> : <LiveBadge label={o.sourceName} />}
             {s.factors.some((f) => f.key === "target") && <Badge tone="lime">🎯 Target company</Badge>}
             {s.eligible === false && <Badge tone="red">Likely not eligible</Badge>}
             {applied && (
@@ -227,22 +229,34 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
         {s.fitSummary}
       </p>
 
+      {o.companyBlurb && o.stage && <p className="mt-2 text-[12.5px] text-muted">{o.companyBlurb}</p>}
+
       <div className="mt-3 grid grid-cols-2 gap-2 text-[12.5px]">
-        <Fact icon={<CalendarClock size={13} />} label={o.isDemo ? "Deadline (example)" : "Deadline"}>
+        <Fact icon={<CalendarClock size={13} />} label={o.isDemo ? "Deadline (example)" : o.stage ? "Dates" : "Deadline"}>
           {o.deadline ? (
             <span className={cn(days !== null && days <= 14 && "font-semibold text-[#c2502f]")}>
               {formatDate(o.deadline, { day: "numeric", month: "short" })} · {days}d
             </span>
+          ) : o.stage ? (
+            <span title={TYPICAL_WINDOW[o.type]}>Check the official page</span>
           ) : (
             "Not verified"
           )}
         </Fact>
-        <Fact icon={<span className="text-[12px] font-bold">£</span>} label={o.isDemo ? "Salary (example)" : "Salary"}>
-          {o.salary?.replace(" (example)", "") ?? "Not verified"}
-        </Fact>
+        {o.stage ? (
+          <Fact icon={<Info size={13} />} label="Usually recruits">
+            <span className="line-clamp-2" title={TYPICAL_WINDOW[o.type]}>
+              {TYPICAL_WINDOW[o.type]}
+            </span>
+          </Fact>
+        ) : (
+          <Fact icon={<span className="text-[12px] font-bold">£</span>} label={o.isDemo ? "Salary (example)" : "Salary"}>
+            {o.salary?.replace(" (example)", "") ?? "Not verified"}
+          </Fact>
+        )}
         <Fact icon={<ShieldCheck size={13} />} label="Sponsorship">
-          <span className={cn(needsSponsor && o.sponsorshipStatus === "not_offered" && "text-[#c2502f]")}>
-            {o.sponsorshipStatus === "offered" ? "Stated as available" : o.sponsorshipStatus === "not_offered" ? "Not offered" : "Not verified"}
+          <span className={cn(needsSponsor && o.sponsorshipStatus === "not_offered" && "text-[#c2502f]")} title={o.visaNote}>
+            {o.sponsorshipStatus === "offered" ? "Stated as available" : o.sponsorshipStatus === "not_offered" ? "Not offered" : o.visaNote ? "See employer's note" : "Not verified"}
           </span>
         </Fact>
         <Fact icon={<Info size={13} />} label="Eligibility">
@@ -252,6 +266,19 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
         </Fact>
       </div>
 
+      {o.visaNote && needsSponsor && (
+        <p className="mt-2 rounded-xl bg-blue-soft/60 px-3 py-2 text-[12px] text-ink-2">
+          <ShieldCheck size={12} className="mr-1 inline text-blue" />
+          {o.visaNote}{" "}
+          {o.visaSource && (
+            <a href={o.visaSource} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue underline">
+              Source
+            </a>
+          )}
+        </p>
+      )}
+      {o.verifiedNote && <p className="mt-2 text-[12px] text-muted">ℹ️ {o.verifiedNote}</p>}
+
       <RoleSkills s={s} />
 
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
@@ -260,7 +287,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
           variant={inRoadmap ? "secondary" : "primary"}
           disabled={inRoadmap}
           onClick={() => {
-            if (addOpportunityToRoadmap(o)) toast.success("Added to your roadmap", { description: o.deadline ? `Target: 2 days before the ${o.isDemo ? "example " : ""}deadline` : "Deadline not verified. Set your own date" });
+            if (addOpportunityToRoadmap(o)) toast.success("Added to your roadmap", { description: o.deadline ? `Target: 2 days before the ${o.isDemo ? "example " : ""}deadline` : "Check this year's dates on the official page and set your own target date" });
           }}
         >
           {inRoadmap ? <CheckCircle2 size={14} /> : <Plus size={14} />} {inRoadmap ? "In roadmap" : "Add to roadmap"}
@@ -284,7 +311,7 @@ function OpportunityCard({ s, onDetails }: { s: ScoredOpportunity; onDetails: ()
         </Link>
         {o.sourceUrl ? (
           <LinkButton href={o.sourceUrl} external size="sm" variant="ghost">
-            View listing <ExternalLink size={12} />
+            {o.stage ? "Official page" : "View listing"} <ExternalLink size={12} />
           </LinkButton>
         ) : (
           <span className="ml-auto text-[11px] text-muted">Source: {o.sourceName}</span>
@@ -423,9 +450,9 @@ function RoleSkills({ s }: { s: ScoredOpportunity }) {
   return (
     <div className="mt-3 rounded-2xl border border-line">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
-        <span className="text-[11.5px] font-semibold uppercase tracking-wide text-muted">{o.skillsSource === "description" ? "Skills mentioned in this listing" : "What this role needs"}</span>
+        <span className="text-[11.5px] font-semibold uppercase tracking-wide text-muted">{o.skillsSource === "description" ? "Skills mentioned in this listing" : o.skillsSource === "typical" ? "Skills typically asked for in this kind of role" : "What this role needs"}</span>
         <span className="text-[11.5px] font-medium text-ink-2">
-          You have {essentials.filter((r) => r.have).length} of {essentials.length} essentials
+          You have {essentials.filter((r) => r.have).length} of {essentials.length}{o.skillsSource === "typical" ? "" : " essentials"}
         </span>
       </div>
       <ul className="divide-y divide-line/70">
