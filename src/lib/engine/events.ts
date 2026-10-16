@@ -106,7 +106,7 @@ export function scoreEvent(e: CareerEvent, p: UserProfile, gapCanon: Set<string>
   const universal = e.tracks.length >= 8;
   if (trackHits.length && !universal) {
     score += 40 * (p.careerGoals[0] && e.tracks.includes(p.careerGoals[0]) ? 1 : 0.75);
-    reasons.push(`relevant to ${TRACK_MAP[trackHits[0]].noun}`);
+    reasons.push(`is relevant to ${TRACK_MAP[trackHits[0]].noun}`);
   } else if (universal) {
     score += 22;
   }
@@ -127,7 +127,7 @@ export function scoreEvent(e: CareerEvent, p: UserProfile, gapCanon: Set<string>
   }
   if (lowNetworking && (e.category === "networking" || e.category === "careers_fair" || e.category === "panel")) {
     score += 10;
-    reasons.push("a low-pressure way to start building contacts");
+    reasons.push("is a low-pressure way to start building contacts");
   }
   if (p.university && e.university && p.university.toLowerCase() === e.university.toLowerCase()) score += 6;
 
@@ -139,7 +139,7 @@ export function scoreEvent(e: CareerEvent, p: UserProfile, gapCanon: Set<string>
   const goal = p.careerGoals[0] ? TRACK_MAP[p.careerGoals[0]].noun : "your career goals";
   const explanation =
     reasons.length > 0
-      ? `Recommended because it's ${reasons.slice(0, 2).join(" and ")}.${e.benefits.length ? ` Good for: ${e.benefits.slice(0, 2).join(" · ")}.` : ""}`
+      ? `Recommended because it ${reasons.slice(0, 2).join(" and ")}.${e.benefits.length ? ` Good for: ${e.benefits.slice(0, 2).join(" · ")}.` : ""}`
       : `General event, limited direct link to ${goal}.`;
 
   return { event: e, score, reasons, explanation, matchedGaps };

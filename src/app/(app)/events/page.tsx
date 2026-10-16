@@ -1,13 +1,15 @@
 "use client";
 
-import { Bookmark, BookmarkCheck, CheckCircle2, Clock, ClipboardPaste, ExternalLink, Globe, Camera, Loader2, MapPin, Plus, Radio, Trash2, Wand2 } from "lucide-react";
+import { Bookmark, BookmarkCheck, CheckCircle2, Clock, ClipboardPaste, ExternalLink, Globe, Camera, Lightbulb, Loader2, MapPin, Plus, Radio, Trash2, Wand2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { exampleEventsFor, unreadableSources, type UnreadableSource } from "@/data/example-events";
 import { getRealProgrammes } from "@/data/programmes";
 import { uniSearch, universitySources } from "@/data/universities";
 import { TRACK_MAP } from "@/data/careers";
 import { Badge, Button, Card, Chip, DemoBadge, EmptyState, Input, Label, LinkButton, LiveBadge, Modal, PageHeader, Select, Tabs, Textarea } from "@/components/ui";
 import { EVENT_CATEGORY_LABEL } from "@/lib/engine/events";
+import { analyseSkills } from "@/lib/engine/skills";
 import { parseAnnouncementLocally } from "@/lib/engine/announcement";
 import { useDerived, useLiveEvents } from "@/lib/hooks";
 import { useStay } from "@/lib/store";
@@ -19,7 +21,21 @@ type When = "week" | "month" | "all";
 export default function EventsPage() {
   const profile = useStay((s) => s.profile)!;
   const live = useLiveEvents(profile.university);
-  const d = useDerived(live.events);
+  // Pages STAY can't read get example events (clearly marked), so the page still shows what to look for
+  const unreadable = useMemo(
+    () => (profile.isDemo ? [] : unreadableSources(profile.university, live.sources, live.status)),
+    [profile.isDemo, profile.university, live.sources, live.status],
+  );
+  const shown = useMemo(() => {
+    const examples = exampleEventsFor(
+      profile,
+      unreadable,
+      todayISO(),
+      analyseSkills(profile).gaps.map((g) => g.skill),
+    );
+    return examples.length ? [...live.events, ...examples] : live.events;
+  }, [profile, unreadable, live.events]);
+  const d = useDerived(shown);
   const savedEvents = useStay((s) => s.savedEvents);
   const manualEvents = useStay((s) => s.manualEvents);
   const [view, setView] = useState<"recommended" | "saved" | "mine">("recommended");
@@ -39,6 +55,8 @@ export default function EventsPage() {
     return l;
   }, [d.events, d.today, view, savedEvents, track, cat, when]);
 
+  const realList = list.filter((e) => e.event.provider !== "example");
+  const exampleList = list.filter((e) => e.event.provider === "example");
   const cats = Array.from(new Set(d.events.map((e) => e.event.category)));
   const uni = profile.university || "your university";
 
@@ -99,15 +117,37 @@ export default function EventsPage() {
       </div>
 
       {list.length ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {list.map((s, i) => (
-            <EventCard key={s.event.id} s={s} top={view === "recommended" && i < 3 && !track && !cat} onDetails={() => setDetail(s)} />
-          ))}
+        <div className="space-y-8">
+          {realList.length > 0 && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {realList.map((s, i) => (
+                <EventCard key={s.event.id} s={s} top={view === "recommended" && i < 3 && !track && !cat} onDetails={() => setDetail(s)} />
+              ))}
+            </div>
+          )}
+          {exampleList.length > 0 && (
+            <section aria-labelledby="examples-heading">
+              <ExamplesIntro sources={unreadable} uni={uni} hasReal={realList.length > 0} />
+              <div className="grid gap-4 lg:grid-cols-2">
+                {exampleList.map((s) => (
+                  <EventCard key={s.event.id} s={s} onDetails={() => setDetail(s)} />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       ) : (
         <EmptyState
           icon={<Bookmark />}
-          title={view === "mine" ? "No events added yet" : d.events.length ? "No events match" : live.status === "loading" ? `Checking ${uni} for events…` : `No upcoming events found automatically for ${uni}`}
+          title={
+            view === "mine"
+              ? "No events added yet"
+              : d.events.length
+                ? "No events match"
+                : live.status === "loading"
+                  ? `Checking ${uni} for events…`
+                  : `No upcoming events found automatically for ${uni}`
+          }
           body={
             view === "mine"
               ? "Paste a society or careers announcement (from Instagram, an email or a web page) and STAY will turn it into an event card and explain why it matters for you."
@@ -121,6 +161,37 @@ export default function EventsPage() {
 
       <PasteModal open={pasteOpen} onClose={() => setPasteOpen(false)} university={profile.university} onSaved={() => setView("mine")} />
       {detail && <EventDetail s={detail} onClose={() => setDetail(null)} />}
+    </div>
+  );
+}
+
+/** Explains the example events and links to the real pages they stand in for. */
+function ExamplesIntro({ sources, uni, hasReal }: { sources: UnreadableSource[]; uni: string; hasReal: boolean }) {
+  const known = sources.some((x) => !x.url.includes("google."));
+  return (
+    <div className="mb-4 rounded-2xl border border-violet/20 bg-violet-soft/60 p-4">
+      <h2 id="examples-heading" className="flex items-center gap-2 font-display text-lg font-semibold">
+        <Lightbulb size={18} className="text-violet" /> {hasReal ? "More to look for" : `What to look for at ${uni}`}
+      </h2>
+      <p className="mt-1 text-[13.5px] text-ink-2">
+        {known
+          ? `${sources.map((x) => x.label.split(":")[0]).join(" and ")} ${sources.length === 1 ? "doesn't" : "don't"} let STAY read ${sources.length === 1 ? "its" : "their"} listings automatically, so these are examples of the events ${sources.length === 1 ? "it usually runs" : "they usually run"}, matched to your goals and skill gaps.`
+          : `STAY doesn't have verified pages for ${uni} yet, so these are examples of the events universities usually run, matched to your goals and skill gaps.`}{" "}
+        They aren&apos;t real dates: open the page to find the actual events, then paste one in and STAY adds it properly.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {sources.map((x) => (
+          <a
+            key={x.url}
+            href={x.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-full border border-violet/30 bg-white px-3 py-1 text-[12.5px] font-semibold text-ink hover:border-violet/60"
+          >
+            {x.url.includes("google.") ? `Search: ${x.label}` : `Open ${x.label.split(":")[0]}`} <ExternalLink size={11} />
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
@@ -152,18 +223,24 @@ function LiveSummary({ live, uni }: { live: ReturnType<typeof useLiveEvents>; un
         <Loader2 size={12} className="animate-spin" /> Checking {uni}&apos;s careers and union pages for upcoming events…
       </p>
     );
-  const read = live.sources.filter((x) => x.status === "ok" || x.status === "none").length;
-  const refused = live.sources.filter((x) => x.status === "blocked" || x.status === "disallowed");
+  const unreadable = (x: (typeof live.sources)[number]) =>
+    x.status === "blocked" || x.status === "disallowed" || x.status === "error" || (x.status === "none" && /could(n't| not)? be read/i.test(x.detail ?? ""));
+  const read = live.sources.filter((x) => !unreadable(x)).length;
+  const refused = live.sources.filter(unreadable);
   return (
     <p className="flex items-start gap-1.5 text-[12px] text-muted">
       <Radio size={12} className="mt-0.5 shrink-0" />
       <span>
-        STAY reads these pages automatically{live.fetchedAt ? ` (last checked ${relativeTime(live.fetchedAt)})` : ""}: {live.events.length} upcoming career event{live.events.length === 1 ? "" : "s"} found on {read} page{read === 1 ? "" : "s"}.
-        {refused.length > 0 && ` ${refused.map((x) => x.label.split(":")[0]).join(" and ")} ${refused.length === 1 ? "doesn't" : "don't"} allow automated reading, so open ${refused.length === 1 ? "it" : "them"} directly.`}
+        STAY reads these pages automatically{live.fetchedAt ? ` (last checked ${relativeTime(live.fetchedAt)})` : ""}
+        {read > 0 ? `: ${live.events.length} upcoming career event${live.events.length === 1 ? "" : "s"} found on ${read} page${read === 1 ? "" : "s"}.` : "."}
+        {refused.length > 0 &&
+          ` STAY couldn't read the listings on ${listJoin(refused.map((x) => x.label.split(":")[0]).filter((x, i, a) => a.indexOf(x) === i))} (the site blocks automated reading or loads events with JavaScript), so examples of what to look for are below. Open the pages for the real dates.`}
       </span>
     </p>
   );
 }
+
+const listJoin = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 function relativeTime(iso: string) {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -177,14 +254,18 @@ function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof use
   const uni = src?.name ?? (profile.university || "your university");
   const track = TRACK_MAP[profile.careerGoals[0] ?? "exploring"];
   const links = src
-    ? [
+    ? ([
         { ...src.careersEvents, kind: "Careers events" },
         src.careersFairs && { ...src.careersFairs, kind: "Careers fairs" },
         src.bookingPlatform && { ...src.bookingPlatform, kind: "Book events" },
         src.unionEvents && { ...src.unionEvents, kind: "Students' union" },
         src.societies && { ...src.societies, kind: "Societies" },
-        src.international && profile.visa.needsSponsorship !== "no" && { ...src.international, kind: "International students" },
-      ].filter(Boolean) as { label: string; url: string; kind: string }[]
+        src.international &&
+          profile.visa.needsSponsorship !== "no" && {
+            ...src.international,
+            kind: "International students",
+          },
+      ].filter(Boolean) as { label: string; url: string; kind: string }[])
     : [];
   // Employers with a page specifically for this university's students
   const campus = getRealProgrammes()
@@ -224,8 +305,17 @@ function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof use
           <div className="font-semibold text-ink">Find events at {uni}</div>
           <p className="mt-1">STAY doesn&apos;t have verified links for {uni} yet. Search below, then paste any announcement and STAY turns it into a ranked event.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {[[`${uni} careers events`, `${uni} careers service events`] as [string, string], [`${uni} careers fair`, `${uni} careers fair ${new Date().getFullYear()}`] as [string, string]].map(([label, q]) => (
-              <a key={label} href={uniSearch(q)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1 text-[12.5px] font-medium hover:border-ink/30">
+            {[
+              [`${uni} careers events`, `${uni} careers service events`] as [string, string],
+              [`${uni} careers fair`, `${uni} careers fair ${new Date().getFullYear()}`] as [string, string],
+            ].map(([label, q]) => (
+              <a
+                key={label}
+                href={uniSearch(q)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1 text-[12.5px] font-medium hover:border-ink/30"
+              >
                 {label} <ExternalLink size={11} />
               </a>
             ))}
@@ -236,7 +326,13 @@ function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof use
         <div className="flex flex-wrap items-center gap-2 text-[13px]">
           <span className="font-semibold">Employers with a page for {uni} students:</span>
           {campus.map((c) => (
-            <a key={c.company} href={c.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-blue/20 bg-blue-soft px-3 py-1 font-medium text-blue hover:border-blue/40">
+            <a
+              key={c.company}
+              href={c.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-blue/20 bg-blue-soft px-3 py-1 font-medium text-blue hover:border-blue/40"
+            >
               {c.company} <ExternalLink size={11} />
             </a>
           ))}
@@ -245,7 +341,13 @@ function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof use
       <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
         <span className="text-muted">Also search:</span>
         {searches.map(([label, q]) => (
-          <a key={label} href={uniSearch(q)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1 font-medium hover:border-ink/30">
+          <a
+            key={label}
+            href={uniSearch(q)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1 font-medium hover:border-ink/30"
+          >
             {label} <ExternalLink size={11} />
           </a>
         ))}
@@ -259,6 +361,7 @@ function UniversitySourcesPanel({ live, onPaste }: { live: ReturnType<typeof use
 }
 
 function SourceBadge({ e }: { e: CareerEvent }) {
+  if (e.provider === "example") return <DemoBadge label="Example, not a real date" />;
   if (e.isDemo) return <DemoBadge label="Example event" />;
   if (e.provider === "manual") return <Badge tone="blue">Added by you</Badge>;
   return <LiveBadge label={e.sourceName} />;
@@ -316,20 +419,38 @@ function EventCard({ s, top, onDetails }: { s: ScoredEvent; top?: boolean; onDet
           </div>
         )}
         <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
-          <Button
-            size="sm"
-            variant={inRoadmap ? "secondary" : "primary"}
-            disabled={inRoadmap}
-            onClick={() => addEventToRoadmap(e) && toast.success("Added to your roadmap", { description: `${e.name} · ${formatDate(e.date)}` })}
-          >
-            {inRoadmap ? <CheckCircle2 size={14} /> : <Plus size={14} />} {inRoadmap ? "In roadmap" : "Add to roadmap"}
-          </Button>
-          {book && !e.isDemo ? (
-            <LinkButton href={book} external size="sm" variant="secondary">
-              Book <ExternalLink size={12} />
-            </LinkButton>
+          {e.provider === "example" ? (
+            <>
+              {e.sourceUrl && (
+                <LinkButton href={e.sourceUrl} external size="sm">
+                  Find real dates <ExternalLink size={12} />
+                </LinkButton>
+              )}
+              <span className="text-[11.5px] text-muted">The kind of event to look for</span>
+            </>
           ) : (
-            <span className="text-[11.5px] text-muted">Example event, no booking link</span>
+            <>
+              <Button
+                size="sm"
+                variant={inRoadmap ? "secondary" : "primary"}
+                disabled={inRoadmap}
+                onClick={() =>
+                  addEventToRoadmap(e) &&
+                  toast.success("Added to your roadmap", {
+                    description: `${e.name} · ${formatDate(e.date)}`,
+                  })
+                }
+              >
+                {inRoadmap ? <CheckCircle2 size={14} /> : <Plus size={14} />} {inRoadmap ? "In roadmap" : "Add to roadmap"}
+              </Button>
+              {book && !e.isDemo ? (
+                <LinkButton href={book} external size="sm" variant="secondary">
+                  Book <ExternalLink size={12} />
+                </LinkButton>
+              ) : (
+                <span className="text-[11.5px] text-muted">Example event, no booking link</span>
+              )}
+            </>
           )}
           <button
             onClick={() => {
@@ -363,7 +484,12 @@ function EventDetail({ s, onClose }: { s: ScoredEvent; onClose: () => void }) {
       </div>
       <div className="mt-4 grid gap-2 text-[13.5px] sm:grid-cols-2">
         <div>
-          <b>When:</b> {formatDate(e.date, { weekday: "long", day: "numeric", month: "long" })}
+          <b>When:</b>{" "}
+          {formatDate(e.date, {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })}
           {e.startTime ? `, ${e.startTime}${e.endTime ? `–${e.endTime}` : ""}` : ""}
         </div>
         <div>
@@ -392,7 +518,7 @@ function EventDetail({ s, onClose }: { s: ScoredEvent; onClose: () => void }) {
           <>
             {" · "}
             <a href={e.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-              open source
+              {e.provider === "example" ? "find the real dates" : "open source"}
             </a>
           </>
         )}
@@ -430,11 +556,18 @@ function PasteModal({ open, onClose, university, onSaved }: { open: boolean; onC
     let fields = parseAnnouncementLocally(text, today);
     let src: "ai" | "rules" = "rules";
     try {
-      const res = await fetch("/api/ai/extract-event", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, today }) });
+      const res = await fetch("/api/ai/extract-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, today }),
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.source === "ai" && data.event) {
-          fields = { ...fields, ...Object.fromEntries(Object.entries(data.event).filter(([, v]) => v !== null && v !== "" && v !== undefined)) };
+          fields = {
+            ...fields,
+            ...Object.fromEntries(Object.entries(data.event).filter(([, v]) => v !== null && v !== "" && v !== undefined)),
+          };
           src = "ai";
         }
       }
@@ -509,7 +642,9 @@ function PasteModal({ open, onClose, university, onSaved }: { open: boolean; onC
             <Label>Announcement text</Label>
             <Textarea
               className="min-h-40"
-              placeholder={"e.g. 🚀 AI Society x Hackathon Soc present: Intro to LLM Agents workshop! Thursday 6 Nov, 6–8pm, Roberts Building G06. Free, bring a laptop. Sign up via link in bio."}
+              placeholder={
+                "e.g. 🚀 AI Society x Hackathon Soc present: Intro to LLM Agents workshop! Thursday 6 Nov, 6–8pm, Roberts Building G06. Free, bring a laptop. Sign up via link in bio."
+              }
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
@@ -536,7 +671,15 @@ function PasteModal({ open, onClose, university, onSaved }: { open: boolean; onC
             </div>
             <div>
               <Label>Category</Label>
-              <Select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value as EventCategory })}>
+              <Select
+                value={draft.category}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    category: e.target.value as EventCategory,
+                  })
+                }
+              >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
                     {EVENT_CATEGORY_LABEL[c]}
@@ -551,7 +694,16 @@ function PasteModal({ open, onClose, university, onSaved }: { open: boolean; onC
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label>Start</Label>
-                <Input type="time" value={draft.startTime ?? ""} onChange={(e) => setDraft({ ...draft, startTime: e.target.value || undefined })} />
+                <Input
+                  type="time"
+                  value={draft.startTime ?? ""}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      startTime: e.target.value || undefined,
+                    })
+                  }
+                />
               </div>
               <div>
                 <Label>End</Label>
