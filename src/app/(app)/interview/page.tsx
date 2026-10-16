@@ -1,19 +1,19 @@
 "use client";
 
-import { BookMarked, Briefcase, Building2, ChevronDown, ChevronRight, FileText, History, Loader2, MessageSquare, Mic, Play, Plus, Sparkles, Trash2, Trophy, Volume2 } from "lucide-react";
+import { BookMarked, Briefcase, Building2, ChevronDown, ChevronRight, CornerDownRight, FileText, History, Loader2, MessageSquare, Mic, Play, Plus, RotateCcw, Sparkles, Trash2, Trophy, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { createContext, useContext, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CASES, COMPETENCIES, type CaseStudy } from "@/data/interview";
 import { TRACK_MAP } from "@/data/careers";
 import { showEffects } from "@/components/effects-toast";
-import { AnswerPanel, FeedbackView, PracticeQuestion, ScoreBars, speak } from "@/components/interview/answer-panel";
+import { AnswerPanel, FeedbackView, isPass, PassBanner, PracticeQuestion, ScoreBars, speak } from "@/components/interview/answer-panel";
 import { Badge, Button, Card, Chip, EmptyState, Input, Label, Modal, PageHeader, Select, Tabs, Textarea } from "@/components/ui";
 import { checkCaseStage, cvItems, overall, pickMockQuestions, questionSet, sessionSummary, storyCoverage, storyToAnswer } from "@/lib/engine/interview";
 import { roleForTrack } from "@/data/careers";
 import { useInsightFeed } from "@/lib/hooks";
 import { useStay } from "@/lib/store";
-import type { CareerTrack, InterviewQuestion, MockSession, StoryEntry } from "@/lib/types";
+import type { AnswerFeedback, CareerTrack, InterviewQuestion, MockSession, MockTurn, StoryEntry } from "@/lib/types";
 import { cn, formatDate, uid } from "@/lib/utils";
 
 /** The field being prepared for, so feedback is scored against that field's hiring bar. */
@@ -284,6 +284,7 @@ function MockView({ set, company, role }: { set: ReturnType<typeof questionSet>;
   const [session, setSession] = useState<MockSession | null>(null);
   const [current, setCurrent] = useState(0);
   const [showFb, setShowFb] = useState(false);
+  const [stage, setStage] = useState<"main" | "followup">("main");
 
   const start = () => {
     if (type === "company" && !company) return toast.error("Add a target company above for a company interview");
@@ -292,13 +293,16 @@ function MockView({ set, company, role }: { set: ReturnType<typeof questionSet>;
     setSession({ id: uid("mock"), type, company: company || undefined, turns: qs.map((q) => ({ question: q, answer: "", seconds: 0 })), startedAt: new Date().toISOString() });
     setCurrent(0);
     setShowFb(false);
+    setStage("main");
   };
 
   if (!session) {
     return (
       <Card className="p-6">
         <h2 className="font-display text-xl font-semibold">Set up your mock interview</h2>
-        <p className="mt-1 text-[14px] text-ink-2">One question at a time, with a timer, optional voice, feedback after each answer and a summary at the end.</p>
+        <p className="mt-1 text-[14px] text-ink-2">
+          Like the real thing: 30 seconds to think and 2 minutes to answer each question. After the feedback, try again until you reach the pass mark (&ldquo;Hire&rdquo;), or carry on. The interviewer then asks a follow-up.
+        </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {MOCK_TYPES.map((t) => (
             <button
@@ -369,8 +373,25 @@ function MockView({ set, company, role }: { set: ReturnType<typeof questionSet>;
             <p className="font-medium">{t.question.text}</p>
             <p className="mt-2 rounded-xl bg-paper p-3 text-[13.5px] text-ink-2">{t.answer || "(skipped)"}</p>
             {t.feedback && (
-              <div className="mt-2 text-[13px]">
-                <b>{overall(t.feedback.scores)}%</b> · {t.feedback.improvements[0] ?? t.feedback.strengths[0]}
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
+                <b>{overall(t.feedback.scores)}%</b>
+                {t.passedOnAttempt ? (
+                  <Badge tone="teal">✓ Pass{t.passedOnAttempt > 1 ? ` on attempt ${t.passedOnAttempt}` : ""}</Badge>
+                ) : (
+                  <Badge tone="sun">Not at pass level yet</Badge>
+                )}
+                {(t.attempts?.length ?? 0) > 1 && <span className="text-muted">{t.attempts!.length} attempts</span>}
+                <span className="text-ink-2">{t.feedback.improvements[0] ?? t.feedback.strengths[0]}</span>
+              </div>
+            )}
+            {t.followUp?.feedback && (
+              <div className="mt-3 border-l-2 border-violet/40 pl-3 text-[13px]">
+                <div className="font-semibold">↳ {t.followUp.question.text}</div>
+                <p className="mt-1 text-ink-2">{t.followUp.answer}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <b>{overall(t.followUp.feedback.scores)}%</b>
+                  {t.followUp.passedOnAttempt ? <Badge tone="teal">✓ Pass</Badge> : <Badge tone="sun">Not at pass level yet</Badge>}
+                </div>
               </div>
             )}
           </Card>
@@ -387,12 +408,71 @@ function MockView({ set, company, role }: { set: ReturnType<typeof questionSet>;
     toast.success("Mock interview saved to History");
     showEffects(fx);
   };
+  const isLast = current >= session.turns.length - 1;
+  const nextQuestion = () => {
+    if (isLast) return finish(session);
+    setCurrent(current + 1);
+    setStage("main");
+    setShowFb(false);
+  };
+  const update = (patch: Partial<MockTurn>) => {
+    const next = { ...session, turns: session.turns.map((t, i) => (i === current ? { ...t, ...patch } : t)) };
+    setSession(next);
+    saveMockSession(next);
+  };
+
+  // Which question is being answered right now: the main one or the interviewer's follow-up
+  const followQ: InterviewQuestion | null = turn.feedback?.followUp ? { ...turn.question, id: `${turn.question.id}-fu`, text: turn.feedback.followUp, modelPoints: undefined } : null;
+  const active = stage === "followup" && turn.followUp ? turn.followUp : null;
+  const activeQ = stage === "followup" && followQ ? (turn.followUp?.question ?? followQ) : turn.question;
+  const attempts = (active ? active.attempts : turn.attempts) ?? [];
+  const latest = attempts[attempts.length - 1];
+  const passed = isPass(latest?.feedback);
+
+  const record = (answer: string, fb: AnswerFeedback, seconds: number) => {
+    const attempt = { answer, feedback: fb, seconds };
+    if (stage === "main") {
+      const all = [...(turn.attempts ?? []), attempt];
+      update({ answer, feedback: fb, seconds, attempts: all, passedOnAttempt: turn.passedOnAttempt ?? (isPass(fb) ? all.length : undefined) });
+    } else if (followQ) {
+      const prev = turn.followUp;
+      const all = [...(prev?.attempts ?? []), attempt];
+      update({ followUp: { question: prev?.question ?? followQ, answer, feedback: fb, seconds, attempts: all, passedOnAttempt: prev?.passedOnAttempt ?? (isPass(fb) ? all.length : undefined) } });
+    }
+    setShowFb(true);
+  };
+  const tryAgain = () => setShowFb(false);
+  const toFollowUp = () => {
+    if (!followQ) return nextQuestion();
+    setStage("followup");
+    setShowFb(false);
+  };
+
+  const mockActions = (ok: boolean) => (
+    <div className="flex flex-wrap justify-end gap-2">
+      {!ok && (
+        <Button onClick={tryAgain}>
+          <RotateCcw size={15} /> Try again
+        </Button>
+      )}
+      {stage === "main" && followQ ? (
+        <Button variant={ok ? "primary" : "secondary"} onClick={toFollowUp}>
+          {ok ? "Answer the follow-up →" : "Continue the interview →"}
+        </Button>
+      ) : (
+        <Button variant={ok ? "primary" : "secondary"} onClick={nextQuestion}>
+          {isLast ? "Finish & see summary" : ok ? "Next question →" : "Continue the interview →"}
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <Card className="p-5 sm:p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-[13px] font-semibold text-muted">
-          Question {current + 1} of {session.turns.length} · {MOCK_TYPES.find((m) => m.value === session.type)?.label}
+          Question {current + 1} of {session.turns.length}
+          {stage === "followup" ? " · follow-up" : ""} · {MOCK_TYPES.find((m) => m.value === session.type)?.label}
           {session.company ? ` · ${session.company}` : ""}
         </div>
         <div className="flex gap-1">
@@ -401,57 +481,57 @@ function MockView({ set, company, role }: { set: ReturnType<typeof questionSet>;
           ))}
         </div>
       </div>
+      {stage === "followup" && (
+        <div className="mb-3 rounded-2xl bg-paper px-4 py-2.5 text-[13px] text-ink-2">
+          <span className="font-semibold text-ink">Earlier: </span>
+          {turn.question.text}
+        </div>
+      )}
       <div className="mb-4 flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-ink text-lime">
-          <MessageSquare size={18} />
+          {stage === "followup" ? <CornerDownRight size={18} /> : <MessageSquare size={18} />}
         </div>
         <div className="rounded-2xl rounded-tl-sm bg-paper px-4 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Interviewer · {KIND_LABEL[turn.question.kind]}</div>
-          <p className="mt-0.5 text-[16px] font-medium leading-snug">{turn.question.text}</p>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Interviewer · {stage === "followup" ? "Follow-up" : KIND_LABEL[turn.question.kind]}
+            {attempts.length > 0 && !showFb ? ` · attempt ${attempts.length + 1}` : ""}
+          </div>
+          <p className="mt-0.5 text-[16px] font-medium leading-snug">{activeQ.text}</p>
         </div>
       </div>
       {!showFb ? (
         <AnswerPanel
-          key={turn.question.id}
-          question={turn.question}
+          key={`${activeQ.id}-${attempts.length}`}
+          question={activeQ}
           voice={voice}
           ctx={{ role, company, track }}
-          onFeedback={(answer, fb, seconds) => {
-            const turns = session.turns.map((t, i) => (i === current ? { ...t, answer, feedback: fb, seconds } : t));
-            const next = { ...session, turns };
-            setSession(next);
-            saveMockSession(next);
-            setShowFb(true);
-          }}
+          onFeedback={record}
+          submitLabel={stage === "followup" ? "Answer follow-up" : "Get feedback"}
         />
       ) : (
-        <div className="space-y-4">
-          {turn.feedback && <FeedbackView fb={turn.feedback} question={turn.question} />}
-          <div className="flex justify-end gap-2">
-            {current < session.turns.length - 1 ? (
-              <Button
-                onClick={() => {
-                  setCurrent(current + 1);
-                  setShowFb(false);
-                }}
-              >
-                Next question →
-              </Button>
-            ) : (
-              <Button onClick={() => finish(session)}>Finish & see summary</Button>
+        latest && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-paper p-3 text-[13.5px] leading-relaxed text-ink-2">
+              <span className="font-semibold text-ink">Your answer{attempts.length > 1 ? ` (attempt ${attempts.length})` : ""}: </span>
+              {latest.answer}
+            </div>
+            <PassBanner fb={latest.feedback} attempt={attempts.length} />
+            {mockActions(passed)}
+            <FeedbackView fb={latest.feedback} question={activeQ} showModel={stage === "main"} />
+            {mockActions(passed)}
+            {passed && attempts.length > 0 && (
+              <div className="text-right">
+                <button onClick={tryAgain} className="text-[12px] text-muted underline">
+                  Practise this one again anyway
+                </button>
+              </div>
             )}
           </div>
-        </div>
+        )
       )}
       {!showFb && (
-        <button
-          className="mt-3 text-[12px] text-muted underline"
-          onClick={() => {
-            if (current < session.turns.length - 1) setCurrent(current + 1);
-            else finish(session);
-          }}
-        >
-          Skip question
+        <button className="mt-3 text-[12px] text-muted underline" onClick={stage === "followup" ? nextQuestion : attempts.length ? () => setShowFb(true) : nextQuestion}>
+          {stage === "followup" ? "Skip follow-up" : attempts.length ? "Back to my last feedback" : "Skip question"}
         </button>
       )}
     </Card>

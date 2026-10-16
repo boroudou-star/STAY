@@ -1,9 +1,9 @@
 "use client";
 
-import { CheckCircle2, ChevronDown, CornerDownRight, Loader2, Mic, MicOff, Quote, Send, Timer, Volume2, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, CornerDownRight, Loader2, Mic, MicOff, Quote, RotateCcw, Send, Timer, Trophy, Volume2, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Textarea } from "@/components/ui";
-import { scoreAnswer } from "@/lib/engine/interview";
+import { overall, scoreAnswer } from "@/lib/engine/interview";
 import { withArticle } from "@/data/hiring-bar";
 import type { AnswerFeedback, AnswerScores, HiringVerdict, InterviewQuestion } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -220,72 +220,231 @@ export function FeedbackView({ fb, question, showModel = true }: { fb: AnswerFee
   );
 }
 
-/* ---------------- Answer panel ---------------- */
+/* ---------------- Pass level ---------------- */
 
+/** The pass mark: an interviewer would put you through ("Hire" or better). */
+export const PASS_LABEL = "Hire";
+export function isPass(fb?: AnswerFeedback | null) {
+  if (!fb) return false;
+  if (fb.verdict) return fb.verdict === "hire" || fb.verdict === "strong_hire";
+  return overall(fb.scores) >= 70;
+}
+
+export function PassBanner({ fb, attempt }: { fb: AnswerFeedback; attempt: number }) {
+  const pass = isPass(fb);
+  return (
+    <div className={cn("flex items-start gap-3 rounded-2xl border p-4", pass ? "border-teal/30 bg-teal-soft" : "border-sun/40 bg-sun-soft/70")}>
+      {pass ? <Trophy size={18} className="mt-0.5 shrink-0 text-teal" /> : <RotateCcw size={18} className="mt-0.5 shrink-0 text-[#c2502f]" />}
+      <div className="text-[13.5px] leading-relaxed">
+        <div className="font-semibold text-ink">
+          {pass ? `Pass level reached${attempt > 1 ? ` on attempt ${attempt}` : ""}.` : `Not at pass level yet${attempt > 1 ? ` (attempt ${attempt})` : ""}.`}
+        </div>
+        <div className="text-ink-2">
+          {pass
+            ? "An interviewer would put this answer through. Next, the interviewer probes deeper with a follow-up."
+            : `The pass mark is "${PASS_LABEL}". Use the interviewer's notes above, then try again, or continue the interview and come back to it later.`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Answer panel (timed) ---------------- */
+
+export const THINK_SECONDS = 30;
+export const ANSWER_SECONDS = 120;
+
+const clock = (secs: number) => `${Math.floor(Math.max(0, secs) / 60)}:${String(Math.max(0, secs) % 60).padStart(2, "0")}`;
+
+/**
+ * Answer one question like a real interview: 30 seconds to think, then 2 minutes to answer.
+ * When time runs out the answer so far is submitted (or, if there's nothing, you can try again).
+ */
 export function AnswerPanel({
   question,
   onFeedback,
   voice,
   ctx,
   submitLabel = "Get feedback",
+  thinkSeconds = THINK_SECONDS,
+  answerSeconds = ANSWER_SECONDS,
 }: {
   question: InterviewQuestion;
   onFeedback: (answer: string, fb: AnswerFeedback, seconds: number) => void;
   voice?: boolean;
   ctx?: FeedbackCtx;
   submitLabel?: string;
+  thinkSeconds?: number;
+  answerSeconds?: number;
 }) {
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
-  const [startedAt] = useState(() => Date.now());
+  const [phase, setPhase] = useState<"think" | "answer" | "timeup">(thinkSeconds > 0 ? "think" : "answer");
   const [now, setNow] = useState(() => Date.now());
-  const dict = useDictation((t) => setAnswer((a) => (a ? `${a} ${t}` : t)));
+  const phaseRef = useRef(phase);
+  const [phaseStart, setPhaseStart] = useState(() => Date.now());
+  const startRef = useRef(phaseStart);
+  const answerRef = useRef("");
+  const submittedRef = useRef(false);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const dict = useDictation((t) =>
+    setAnswer((a) => {
+      const next = a ? `${a} ${t}` : t;
+      answerRef.current = next;
+      return next;
+    }),
+  );
+  const dictRef = useRef(dict);
 
+  const go = (p: "think" | "answer" | "timeup") => {
+    const t = Date.now();
+    phaseRef.current = p;
+    startRef.current = t;
+    setPhaseStart(t);
+    setPhase(p);
+    if (p === "answer") setTimeout(() => textRef.current?.focus(), 30);
+  };
+
+  const submit = async (timedOut = false) => {
+    const text = answerRef.current.trim();
+    if (submittedRef.current || text.length < 15) return;
+    submittedRef.current = true;
+    if (dictRef.current.listening) dictRef.current.toggle();
+    const used = Math.min(answerSeconds, Math.round((Date.now() - startRef.current) / 1000));
+    setLoading(true);
+    const fb = await getFeedback(question, text, ctx);
+    const withTime: AnswerFeedback = timedOut
+      ? {
+          ...fb,
+          notes: [
+            { issue: `You ran out of time at ${clock(answerSeconds)}. Interviewers notice when an answer has no ending.`, fix: "Aim to finish in about 90 seconds: give the headline result first, then the detail if there's time." },
+            ...(fb.notes ?? []),
+          ].slice(0, 6),
+        }
+      : fb;
+    setLoading(false);
+    onFeedback(text, withTime, used);
+  };
+  const submitRef = useRef(submit);
+  // Keep the timer's view of the latest handlers current
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    dictRef.current = dict;
+    submitRef.current = submit;
+  });
+
+  // One clock drives both phases
+  useEffect(() => {
+    const id = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      const elapsed = (t - startRef.current) / 1000;
+      if (phaseRef.current === "think" && elapsed >= thinkSeconds) go("answer");
+      else if (phaseRef.current === "answer" && elapsed >= answerSeconds && !submittedRef.current) {
+        if (dictRef.current.listening) dictRef.current.toggle();
+        if (answerRef.current.trim().length >= 15) submitRef.current(true);
+        else go("timeup");
+      }
+    }, 250);
     return () => clearInterval(id);
-  }, []);
+  }, [thinkSeconds, answerSeconds]);
   useEffect(() => {
     if (voice) speak(question.text);
   }, [voice, question.text]);
 
-  const secs = Math.round((now - startedAt) / 1000);
-  const mm = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  const elapsed = Math.floor((now - phaseStart) / 1000);
+  const total = phase === "think" ? thinkSeconds : answerSeconds;
+  const left = Math.max(0, total - elapsed);
+  const pct = Math.min(100, (elapsed / total) * 100);
 
-  const submit = async () => {
-    if (answer.trim().length < 15) return;
-    if (dict.listening) dict.toggle();
-    setLoading(true);
-    const fb = await getFeedback(question, answer.trim(), ctx);
-    setLoading(false);
-    onFeedback(answer.trim(), fb, secs);
-  };
+  if (phase === "think") {
+    return (
+      <div className="rounded-2xl border border-line bg-paper p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-widest text-violet">Thinking time</div>
+            <p className="mt-1 text-[13.5px] text-ink-2">
+              {question.kind === "behavioural"
+                ? "Pick one real example. Plan it as Situation, Task, Action, Result, and decide your result first."
+                : question.kind === "technical" || question.kind === "case"
+                  ? "Structure first: what are the 2 or 3 parts of your answer?"
+                  : "Decide your main point and one specific example to back it up."}
+            </p>
+          </div>
+          <div className="font-display text-4xl font-bold tabular-nums" aria-live="polite" aria-label={`${left} seconds to think`}>
+            {clock(left)}
+          </div>
+        </div>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-paper-2">
+          <div className="h-full rounded-full bg-violet transition-[width] duration-300" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <span className="text-[12px] text-muted">You&apos;ll then have {clock(answerSeconds)} to answer.</span>
+          <Button size="sm" onClick={() => go("answer")}>
+            I&apos;m ready: start answering
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
+  if (phase === "timeup") {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-[13.5px]">
+        <div className="font-semibold text-ink">Time&apos;s up, and there wasn&apos;t enough of an answer to score.</div>
+        <p className="mt-1 text-ink-2">In a real interview, the interviewer would move on. Take another 30 seconds to plan, then aim to start speaking straight away.</p>
+        <Button
+          size="sm"
+          className="mt-3"
+          onClick={() => {
+            answerRef.current = "";
+            setAnswer("");
+            go("think");
+          }}
+        >
+          <RotateCcw size={14} /> Try again
+        </Button>
+      </div>
+    );
+  }
+
+  const urgent = left <= 10;
+  const warn = left <= 30;
   return (
     <div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[12px] font-semibold uppercase tracking-widest text-teal">Your answer</span>
+        <span className={cn("inline-flex items-center gap-1 font-display text-lg font-bold tabular-nums", urgent ? "text-red-600" : warn ? "text-[#c2502f]" : "text-ink")} aria-label={`${left} seconds left to answer`}>
+          <Timer size={15} /> {clock(left)} left
+        </span>
+      </div>
+      <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-paper-2">
+        <div className={cn("h-full rounded-full transition-[width] duration-300", urgent ? "bg-red-500" : warn ? "bg-sun" : "bg-teal")} style={{ width: `${pct}%` }} />
+      </div>
       <Textarea
+        ref={textRef}
         className="min-h-40 text-[14.5px]"
         placeholder={question.kind === "behavioural" ? "Situation → Task → Action → Result. Type or use the mic…" : "Think out loud. Structure first, then detail. Type or use the mic…"}
         value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
+        onChange={(e) => {
+          answerRef.current = e.target.value;
+          setAnswer(e.target.value);
+        }}
+        disabled={loading}
         aria-label="Your answer"
       />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {dict.supported && (
-            <Button size="sm" variant={dict.listening ? "danger" : "secondary"} onClick={dict.toggle}>
+            <Button size="sm" variant={dict.listening ? "danger" : "secondary"} onClick={dict.toggle} disabled={loading}>
               {dict.listening ? <MicOff size={14} /> : <Mic size={14} />} {dict.listening ? "Stop" : "Speak answer"}
             </Button>
           )}
           <Button size="sm" variant="ghost" onClick={() => speak(question.text)} aria-label="Read question aloud">
             <Volume2 size={14} />
           </Button>
-          <span className={cn("inline-flex items-center gap-1 text-[12px] font-medium", secs > 150 ? "text-[#c2502f]" : "text-muted")}>
-            <Timer size={12} /> {mm}
-            {dict.listening && <Badge tone="red">● recording</Badge>}
-          </span>
+          {dict.listening && <Badge tone="red">● recording</Badge>}
         </div>
-        <Button size="sm" onClick={submit} disabled={loading || answer.trim().length < 15}>
+        <Button size="sm" onClick={() => submit(false)} disabled={loading || answer.trim().length < 15}>
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {submitLabel}
         </Button>
       </div>
@@ -293,11 +452,13 @@ export function AnswerPanel({
   );
 }
 
-/** Practise one question: answer → feedback → optional follow-up probe. */
+/** Practise one question: answer → feedback → try again until pass level → the interviewer's follow-up. */
 export function PracticeQuestion({ question, ctx, onDone }: { question: InterviewQuestion; ctx?: FeedbackCtx; onDone?: (answer: string, fb: AnswerFeedback) => void }) {
   const [result, setResult] = useState<{ answer: string; fb: AnswerFeedback } | null>(null);
   const [probe, setProbe] = useState<{ answer: string; fb: AnswerFeedback } | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const [attempt, setAttempt] = useState(1);
+  const [probeAttempt, setProbeAttempt] = useState(1);
+  const [moveOn, setMoveOn] = useState(false);
   if (!result)
     return (
       <AnswerPanel
@@ -310,41 +471,68 @@ export function PracticeQuestion({ question, ctx, onDone }: { question: Intervie
         }}
       />
     );
+  const passed = isPass(result.fb);
   const followQ: InterviewQuestion | null = result.fb.followUp ? { ...question, id: `${question.id}-probe`, text: result.fb.followUp, modelPoints: undefined } : null;
+  const retry = () => {
+    setResult(null);
+    setProbe(null);
+    setMoveOn(false);
+    setProbeAttempt(1);
+    setAttempt((a) => a + 1);
+  };
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-paper p-3 text-[13.5px] leading-relaxed text-ink-2">
-        <span className="font-semibold text-ink">Your answer: </span>
+        <span className="font-semibold text-ink">Your answer{attempt > 1 ? ` (attempt ${attempt})` : ""}: </span>
         {result.answer}
       </div>
       <FeedbackView fb={result.fb} question={question} />
-      {followQ && !probe && (
+      <PassBanner fb={result.fb} attempt={attempt} />
+      {!passed && !moveOn && (
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button size="sm" variant="secondary" onClick={() => setMoveOn(true)} disabled={!followQ}>
+            Continue to the follow-up
+          </Button>
+          <Button size="sm" onClick={retry}>
+            <RotateCcw size={14} /> Try again
+          </Button>
+        </div>
+      )}
+      {followQ && (passed || moveOn) && !probe && (
         <div className="rounded-2xl border border-violet/25 bg-violet-soft/40 p-4">
-          <div className="mb-2 flex items-start gap-2 text-[14px] font-medium">
+          <div className="mb-3 flex items-start gap-2 text-[14px] font-medium">
             <CornerDownRight size={16} className="mt-0.5 shrink-0 text-violet" /> Interviewer follow-up: {followQ.text}
           </div>
-          <AnswerPanel question={followQ} ctx={ctx} onFeedback={(answer, fb) => setProbe({ answer, fb })} submitLabel="Answer follow-up" />
+          <AnswerPanel key={`probe-${probeAttempt}`} question={followQ} ctx={ctx} onFeedback={(answer, fb) => setProbe({ answer, fb })} submitLabel="Answer follow-up" />
         </div>
       )}
       {probe && followQ && (
-        <div className="rounded-2xl border border-violet/25 p-4">
-          <div className="mb-3 text-[13px] font-semibold">Follow-up feedback</div>
+        <div className="space-y-3 rounded-2xl border border-violet/25 p-4">
+          <div className="text-[13px] font-semibold">Follow-up feedback</div>
           <FeedbackView fb={probe.fb} question={followQ} showModel={false} />
+          <PassBanner fb={probe.fb} attempt={probeAttempt} />
+          {!isPass(probe.fb) && (
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={() => {
+                  setProbe(null);
+                  setProbeAttempt((a) => a + 1);
+                }}
+              >
+                <RotateCcw size={14} /> Try the follow-up again
+              </Button>
+            </div>
+          )}
         </div>
       )}
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            setResult(null);
-            setProbe(null);
-            setAttempt((a) => a + 1);
-          }}
-        >
-          Try again
-        </Button>
-      </div>
+      {(passed || moveOn) && (
+        <div className="flex justify-end">
+          <Button size="sm" variant="ghost" onClick={retry}>
+            <RotateCcw size={14} /> Practise the main question again
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

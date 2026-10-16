@@ -484,11 +484,24 @@ export interface AnswerFeedback {
   field?: string;
 }
 
+export interface MockAttempt {
+  answer: string;
+  seconds: number;
+  feedback: AnswerFeedback;
+}
+
 export interface MockTurn {
   question: InterviewQuestion;
+  /** The latest attempt (what the summary scores) */
   answer: string;
   seconds: number;
   feedback?: AnswerFeedback;
+  /** Every attempt at this question, oldest first */
+  attempts?: MockAttempt[];
+  /** Attempt number that first reached pass level */
+  passedOnAttempt?: number;
+  /** The interviewer's follow-up question, once reached */
+  followUp?: { question: InterviewQuestion; answer: string; seconds: number; feedback?: AnswerFeedback; attempts?: MockAttempt[]; passedOnAttempt?: number };
 }
 
 export interface MockSession {
