@@ -1,13 +1,14 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { demoProfile } from "@/data/demo-profile";
 import { activityStats, AUTO_COMPLETE_RULES, START_TEMPLATES } from "@/lib/engine/roadmap";
 import { canonicalSkill } from "@/data/careers";
 import { buildRoadmap } from "@/lib/services/catalog";
-import { activeSlot, keyFor, migrateLegacyDemo, setActiveSlot, slotProfile, stayStorage, STORAGE_KEY, type Slot } from "@/lib/persistence";
+import { AUTH_EVENT, currentAccount, deleteCurrentAccount, listAccounts, signOutSession, type AccountInfo } from "@/lib/accounts";
+import { activeSlot, keyFor, migrateLegacyDemo, setActiveSlot, SIGNED_OUT_KEY, legacyProfile, slotProfile, stayStorage, type Slot } from "@/lib/persistence";
 import type { Activity, CareerEvent, ChatTurn, StartingPoint, ContactTracking, FeedItem, InsightEntry, InsightPrefs, MockSession, ReadingNote, StoryEntry, Opportunity, Priority, RoadmapTask, TaskCategory, TaskStatus, UserContact, UserProfile } from "@/lib/types";
 import { addDays, daysBetween, todayISO, uid } from "@/lib/utils";
 
@@ -428,7 +429,7 @@ export const useStay = create<StayState>()(
       deleteStory: (id) => set((s) => ({ stories: s.stories.filter((x) => x.id !== id) })),
     }),
     {
-      name: typeof window === "undefined" ? STORAGE_KEY : keyFor(activeSlot()),
+      name: typeof window === "undefined" ? SIGNED_OUT_KEY : keyFor(activeSlot()),
       storage: createJSONStorage(() => stayStorage),
       version: 1,
       // Fields missing from older saves fall back to defaults, never to the other space's data
@@ -462,13 +463,18 @@ function autoSync(get: () => StayState, set: (p: Partial<StayState>) => void): E
 }
 
 /**
- * Switch between the user's own space and the demo. Each keeps its own data.
- * Returns whether the space now has a profile.
+ * Switch between the signed-in account's own space and the demo. Each keeps its own data.
+ * Signed out, "mine" is an empty space. Returns whether the space now has a profile.
  */
 export async function switchSlot(slot: Slot, opts: { freshDemo?: boolean } = {}) {
   const key = keyFor(slot);
   setActiveSlot(slot);
   useStay.persist.setOptions({ name: key });
+  if (key === SIGNED_OUT_KEY) {
+    useStay.setState({ ...initial });
+    useStay.persist.clearStorage();
+    return false;
+  }
   let raw: string | null = null;
   try {
     raw = window.localStorage.getItem(key);
@@ -485,11 +491,35 @@ export async function switchSlot(slot: Slot, opts: { freshDemo?: boolean } = {})
   return Boolean(useStay.getState().profile);
 }
 
-/** Wipes the user's own space on this device. */
-export async function deleteMyData() {
+/** Logs out: the account's data stays saved, and nothing of it is left on screen. */
+export async function signOut() {
+  signOutSession();
   await switchSlot("mine");
-  useStay.setState({ ...initial });
-  useStay.persist.clearStorage();
+}
+
+/** Deletes the signed-in account and everything saved in it, then logs out. */
+export async function deleteMyAccount() {
+  deleteCurrentAccount();
+  await switchSlot("mine");
+}
+
+function subscribeAuth(cb: () => void) {
+  window.addEventListener("storage", cb);
+  window.addEventListener(AUTH_EVENT, cb);
+  const unsub = useStay.subscribe(cb);
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener(AUTH_EVENT, cb);
+    unsub();
+  };
+}
+
+/**
+ * The signed-in account (never includes the password hash).
+ * undefined on the server and before the browser has loaded, null when signed out.
+ */
+export function useAccount(): AccountInfo | null | undefined {
+  return useDeviceValue(currentAccount);
 }
 
 /** True once persisted state has loaded in the browser (avoids SSR/hydration mismatches). */
@@ -501,20 +531,24 @@ export function useHydrated() {
   );
 }
 
+/** Reads something from this browser's storage after load, re-reading when accounts or data change. undefined until loaded. */
+function useDeviceValue<T>(read: () => T): T | undefined {
+  const snap = useSyncExternalStore(subscribeAuth, () => JSON.stringify(read() ?? null), () => "");
+  return useMemo(() => (snap ? (JSON.parse(snap) as T) : undefined), [snap]);
+}
+
+/** Accounts saved on this device, most recently used first. */
+export const useDeviceAccounts = () => useDeviceValue(listAccounts);
+/** A plan made on this device before accounts existed, if one is waiting to be kept. */
+export const useLegacyPlan = () => useDeviceValue(legacyProfile);
+
 /**
- * Whether the user has their own saved profile on this device (even while viewing the demo).
+ * Whether the signed-in account has its own saved profile (even while viewing the demo).
  * Returns null on the server and before the browser has loaded.
  */
 export function useMyProfile(): { name: string } | null {
   const snap = useSyncExternalStore(
-    (cb) => {
-      window.addEventListener("storage", cb);
-      const unsub = useStay.subscribe(cb);
-      return () => {
-        window.removeEventListener("storage", cb);
-        unsub();
-      };
-    },
+    subscribeAuth,
     () => {
       const p = slotProfile("mine");
       return p && !p.isDemo ? `1:${p.name}` : "0";

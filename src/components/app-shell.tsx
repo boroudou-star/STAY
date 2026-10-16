@@ -1,11 +1,12 @@
 "use client";
 
-import { CalendarDays, Compass, Coffee, GraduationCap, LayoutDashboard, Map, Menu, Mic, Newspaper, ShieldCheck, Sparkles, User, X } from "lucide-react";
+import { ArrowLeftRight, CalendarDays, Compass, Coffee, GraduationCap, LayoutDashboard, LogIn, LogOut, Map, Menu, Mic, Newspaper, ShieldCheck, Sparkles, User, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { progress } from "@/lib/engine/roadmap";
-import { switchSlot, useMyProfile, useStay } from "@/lib/store";
+import { toast } from "sonner";
+import { signOut, switchSlot, useAccount, useMyProfile, useStay } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { DemoBadge, ProgressBar } from "./ui";
@@ -48,30 +49,80 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarFooter() {
+function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
   const profile = useStay((s) => s.profile);
   const tasks = useStay((s) => s.tasks);
   const pct = progress(tasks);
-  if (!profile) return null;
   return (
-    <div className="rounded-2xl border border-line bg-paper p-3.5">
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal to-blue font-display text-sm font-bold text-white">
-          {(profile.name || "You").slice(0, 1)}
-        </div>
-        <div className="min-w-0">
-          <div className="truncate text-[13px] font-semibold">{profile.name || "You"}</div>
-          <div className="flex items-center gap-1 truncate text-[12px] text-muted">
-            <GraduationCap size={12} /> {profile.university || "University"}
+    <div className="space-y-2">
+      {profile && (
+        <div className="rounded-2xl border border-line bg-paper p-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal to-blue font-display text-sm font-bold text-white">
+              {(profile.name || "You").slice(0, 1)}
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[13px] font-semibold">{profile.name || "You"}</div>
+              <div className="flex items-center gap-1 truncate text-[12px] text-muted">
+                <GraduationCap size={12} /> {profile.university || "University"}
+              </div>
+            </div>
           </div>
+          <div className="mt-3 flex items-center justify-between text-[12px] text-muted">
+            <span>Roadmap</span>
+            <span className="font-semibold text-ink">{pct}%</span>
+          </div>
+          <ProgressBar value={pct} className="mt-1.5 h-1.5" />
+          {profile.isDemo && <DemoBadge className="mt-3" label="Demo profile" />}
+        </div>
+      )}
+      <AccountControls onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+/** Who is signed in, with log out and switch account. */
+function AccountControls({ onNavigate }: { onNavigate?: () => void }) {
+  const account = useAccount();
+  const router = useRouter();
+  if (account === undefined) return null;
+  const small = "inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-card px-2 text-[12.5px] font-medium text-ink-2 transition-colors hover:border-ink/25 hover:text-ink";
+
+  if (!account)
+    return (
+      <div className="rounded-2xl border border-dashed border-line px-3 py-2.5">
+        <div className="text-[12px] text-muted">Not signed in</div>
+        <div className="mt-2 flex gap-1.5">
+          <Link href="/signin" onClick={onNavigate} className={small}>
+            <LogIn size={14} /> Sign in
+          </Link>
+          <Link href="/signup" onClick={onNavigate} className={cn(small, "border-ink bg-ink text-white hover:text-white")}>
+            Sign up
+          </Link>
         </div>
       </div>
-      <div className="mt-3 flex items-center justify-between text-[12px] text-muted">
-        <span>Roadmap</span>
-        <span className="font-semibold text-ink">{pct}%</span>
+    );
+
+  const logOut = async (then: "/" | "/signin") => {
+    onNavigate?.();
+    await signOut();
+    if (then === "/") toast("You've logged out", { description: "Your plan is saved. Sign in any time to pick it up." });
+    router.push(then);
+  };
+
+  return (
+    <div className="rounded-2xl border border-line px-3 py-2.5">
+      <div className="truncate text-[12px] text-muted" title={account.email}>
+        Signed in as <span className="font-semibold text-ink">{account.email}</span>
       </div>
-      <ProgressBar value={pct} className="mt-1.5 h-1.5" />
-      {profile.isDemo && <DemoBadge className="mt-3" label="Demo profile" />}
+      <div className="mt-2 flex gap-1.5">
+        <button onClick={() => logOut("/signin")} className={small}>
+          <ArrowLeftRight size={14} /> Switch
+        </button>
+        <button onClick={() => logOut("/")} className={small}>
+          <LogOut size={14} /> Log out
+        </button>
+      </div>
     </div>
   );
 }
@@ -80,6 +131,7 @@ function SidebarFooter() {
 function DemoBanner() {
   const isDemo = useStay((s) => Boolean(s.profile?.isDemo));
   const mine = useMyProfile();
+  const account = useAccount();
   const router = useRouter();
   if (!isDemo) return null;
   return (
@@ -98,8 +150,8 @@ function DemoBanner() {
           Back to my plan{mine.name ? ` (${mine.name.split(" ")[0]})` : ""}
         </button>
       ) : (
-        <Link href="/onboarding" className="shrink-0 rounded-full bg-ink px-4 py-1.5 text-center text-[13px] font-semibold text-white hover:bg-ink/90">
-          Build my own plan
+        <Link href={account ? "/onboarding" : "/signup"} className="shrink-0 rounded-full bg-ink px-4 py-1.5 text-center text-[13px] font-semibold text-white hover:bg-ink/90">
+          {account ? "Build my own plan" : "Create my account"}
         </Link>
       )}
     </div>
@@ -111,7 +163,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen w-full">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between border-r border-line bg-card/70 px-4 py-5 backdrop-blur lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between gap-4 overflow-y-auto border-r border-line bg-card/70 px-4 py-5 backdrop-blur lg:flex">
         <div>
           <Link href="/" className="mb-7 block px-2">
             <Logo />
@@ -133,7 +185,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button className="absolute inset-0 bg-ink/30" onClick={() => setOpen(false)} aria-label="Close menu" />
-          <div className="absolute right-0 top-0 flex h-full w-72 flex-col justify-between bg-card p-4 shadow-[var(--shadow-lift)] animate-fade-up">
+          <div className="absolute right-0 top-0 flex h-full w-72 flex-col justify-between gap-4 overflow-y-auto bg-card p-4 shadow-[var(--shadow-lift)] animate-fade-up">
             <div>
               <div className="mb-6 flex items-center justify-between">
                 <Logo />
@@ -143,7 +195,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
               <NavLinks onNavigate={() => setOpen(false)} />
             </div>
-            <SidebarFooter />
+            <SidebarFooter onNavigate={() => setOpen(false)} />
           </div>
         </div>
       )}

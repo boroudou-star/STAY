@@ -193,7 +193,7 @@ export function Label({ children, hint, htmlFor }: { children: ReactNode; hint?:
 const fieldBase =
   "w-full rounded-xl border border-line bg-white px-3.5 text-[14px] text-ink placeholder:text-muted/70 transition focus:border-blue/50 focus:outline-none focus:ring-4 focus:ring-blue/10";
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> }) {
   return <input className={cn(fieldBase, "h-11", className)} {...props} />;
 }
 

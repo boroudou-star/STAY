@@ -29,7 +29,15 @@ Without a key, every feature falls back to deterministic logic.
 
 ## For real users
 
-Anyone can build their own plan at **Build my plan** (`/onboarding`, about 5 minutes, no account):
+Anyone can **create an account** (`/signup`: name, email, password), then build their own plan (`/onboarding`, about 5 minutes):
+
+**Accounts** (`src/lib/accounts.ts`, `src/components/auth.tsx`):
+- **Sign up / Sign in / Log out / Switch account.** Log out and Switch sit at the bottom of the sidebar (and the mobile menu), on the landing page and on Profile → Account. Each account has its own plan, so several people can share a browser.
+- **Sign in** lists the accounts on this device; tap one and type its password. Wrong passwords and duplicate emails are refused with clear messages.
+- Passwords are never stored: only a salted PBKDF2-SHA256 hash (210k iterations, Web Crypto). **Change password** and **Delete my account** are on Profile.
+- Accounts live in this browser (`stay-accounts-v1`, data per account in `stay-acct-<id>`). They separate people sharing a browser; they don't sync between devices (use Download / Restore). A plan made before accounts existed (`stay-state-v1`) is offered to the next account created and moved into it.
+- The demo needs no account and never touches anyone's data.
+
 
 | Step | What it asks | What it changes |
 |---|---|---|
@@ -43,11 +51,11 @@ Anyone can build their own plan at **Build my plan** (`/onboarding`, about 5 min
 | Review | Every answer with Edit links and a plain-English "how STAY will tailor your plan" | |
 
 - Answers are saved as you go, so a refresh doesn't lose them.
-- The **Profile** page edits every answer, shows a profile-strength score with the most useful missing answers, and has **Download my data**, **Restore from a file** and **Delete my data**.
+- The **Profile** page edits every answer, shows a profile-strength score with the most useful missing answers, and has **Log out**, **Change password**, **Delete my account**, **Download my data** and **Restore from a file**.
 - The dashboard explains how the plan was tailored and prompts for missing answers.
 - Students outside UCL get search links for their own careers service and societies, plus paste-an-announcement; UCL example events are only shown to UCL students.
 
-**Demo and real data are separate.** The demo (Alex) lives in its own space in the browser (`stay-demo-v1`); your own data is in `stay-state-v1`. Trying or resetting the demo never touches your plan, and a banner offers "Back to my plan".
+**Demo and real data are separate.** The demo (Alex) lives in its own space in the browser (`stay-demo-v1`); each account's data is in `stay-acct-<id>`. Trying or resetting the demo never touches your plan, and a banner offers "Back to my plan".
 
 ## Judge demo (2 minutes)
 
@@ -142,7 +150,7 @@ src/
 
 ## Known limitations
 
-- Progress is stored in the browser (no accounts yet); clearing site data resets it. Use Profile → Download my data to keep a copy or move devices. Swapping `src/lib/persistence.ts` for a database adds accounts later.
+- Accounts and progress are stored in the browser, so they don't follow you to another device and clearing site data removes them; there's no email password reset. Use Profile → Download my data to keep a copy or move devices. For cloud accounts, replace `src/lib/accounts.ts` with a hosted auth service and `stayStorage` in `src/lib/persistence.ts` with a database (e.g. Supabase).
 - Demo deadlines are generated relative to today so the demo stays fresh — they are labelled "example".
 - Recruitment-cycle timing uses typical UK patterns, not employer-verified dates.
 - Live UCL Careers parsing depends on the page structure and an AI key; if it fails, the UI links to the source instead.

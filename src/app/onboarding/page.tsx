@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, Loader2, Pencil, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Pencil, Sparkles, UserPlus, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -17,14 +17,16 @@ import {
   VisaFields,
 } from "@/components/profile-fields";
 import { TubeMap } from "@/components/tube-map";
-import { Button, ProgressBar, Skeleton } from "@/components/ui";
+import { Button, LinkButton, ProgressBar, Skeleton } from "@/components/ui";
+import { currentAccountId, type AccountInfo } from "@/lib/accounts";
 import { computeHorizon, computePhases } from "@/lib/engine/roadmap";
 import { blankProfile, tailoringNotes, withDefaults } from "@/lib/profile";
-import { switchSlot, useHydrated, useMyProfile, useStay } from "@/lib/store";
+import { switchSlot, useAccount, useHydrated, useMyProfile, useStay } from "@/lib/store";
 import type { UserProfile } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
-const DRAFT_KEY = "stay-onboarding-draft-v2";
+/** Answers so far are kept per account, so a refresh doesn't lose them. */
+const draftKey = () => `stay-onboarding-draft-v2:${currentAccountId() ?? "none"}`;
 
 const STEPS = [
   { key: "about", label: "You", title: "Let's build your plan", subtitle: "About 5 minutes. Skip anything marked optional, and change any answer later on your Profile page." },
@@ -46,7 +48,7 @@ interface Draft {
 
 function loadDraft(): Draft | null {
   try {
-    const raw = window.localStorage.getItem(DRAFT_KEY);
+    const raw = window.localStorage.getItem(draftKey());
     if (!raw) return null;
     const d = JSON.parse(raw) as Draft;
     return d?.p ? { step: Math.min(Math.max(0, d.step ?? 0), STEPS.length - 1), p: withDefaults({ ...blankProfile(), ...d.p }) } : null;
@@ -57,7 +59,7 @@ function loadDraft(): Draft | null {
 
 function clearDraft() {
   try {
-    window.localStorage.removeItem(DRAFT_KEY);
+    window.localStorage.removeItem(draftKey());
   } catch {
     /* ignore */
   }
@@ -65,21 +67,46 @@ function clearDraft() {
 
 export default function OnboardingPage() {
   const hydrated = useHydrated();
-  if (!hydrated)
+  const account = useAccount();
+  if (!hydrated || account === undefined)
     return (
       <div className="map-paper min-h-screen px-5 py-20">
         <Skeleton className="mx-auto h-[520px] max-w-3xl rounded-[28px]" />
       </div>
     );
-  return <Onboarding />;
+  if (!account) return <NeedAccount />;
+  return <Onboarding key={account.id} account={account} />;
 }
 
-function Onboarding() {
+/** Plans are saved to an account, so building one starts with signing up or in. */
+function NeedAccount() {
+  return (
+    <div className="map-paper flex min-h-screen items-center justify-center px-5">
+      <div className="w-full max-w-md animate-fade-up rounded-[28px] border border-line bg-card p-8 text-center shadow-[var(--shadow-lift)]">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-lime/60">
+          <UserPlus size={22} />
+        </div>
+        <h1 className="font-display text-2xl font-semibold">Create an account to save your plan</h1>
+        <p className="mt-2 text-[14.5px] text-ink-2">It takes a minute, keeps your plan separate from anyone else using this browser, and lets you log out and come back to it.</p>
+        <div className="mt-6 flex flex-col gap-2">
+          <LinkButton href="/signup" size="lg">
+            Create an account
+          </LinkButton>
+          <LinkButton href="/signin" size="lg" variant="secondary">
+            I already have one: sign in
+          </LinkButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Onboarding({ account }: { account: AccountInfo }) {
   const router = useRouter();
   const mine = useMyProfile();
   const [restored] = useState(loadDraft);
   const [step, setStep] = useState(restored?.step ?? 0);
-  const [p, setP] = useState<UserProfile>(() => restored?.p ?? blankProfile());
+  const [p, setP] = useState<UserProfile>(() => restored?.p ?? { ...blankProfile(), name: account.name });
   const [generating, setGenerating] = useState(false);
   const [lineIdx, setLineIdx] = useState(0);
   const update = (patch: Partial<UserProfile>) => setP((prev) => ({ ...prev, ...patch }));
@@ -89,7 +116,7 @@ function Onboarding() {
   useEffect(() => {
     if (generating) return;
     try {
-      window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, p }));
+      window.localStorage.setItem(draftKey(), JSON.stringify({ step, p }));
     } catch {
       /* storage blocked */
     }
@@ -173,7 +200,7 @@ function Onboarding() {
               className="font-semibold underline underline-offset-2"
               onClick={() => {
                 clearDraft();
-                setP(blankProfile());
+                setP({ ...blankProfile(), name: account.name });
               }}
             >
               Start fresh instead
@@ -183,7 +210,7 @@ function Onboarding() {
         {step === 0 && mine && (
           <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-sun/30 bg-sun-soft px-4 py-3 text-[13.5px] sm:flex-row sm:items-center sm:justify-between">
             <span>
-              You already have a plan{mine.name ? ` for ${mine.name.split(" ")[0]}` : ""} on this device. Finishing this will replace it. To change answers instead, use your Profile page.
+              This account already has a plan{mine.name ? ` for ${mine.name.split(" ")[0]}` : ""}. Finishing this will replace it. To change answers instead, use your Profile page.
             </span>
             <button
               className="shrink-0 rounded-full bg-ink px-4 py-1.5 text-[13px] font-semibold text-white"

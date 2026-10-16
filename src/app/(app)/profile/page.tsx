@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, RefreshCw, Save, Sparkles, Trash2, Upload } from "lucide-react";
+import { Download, KeyRound, LogOut, RefreshCw, Save, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -16,7 +16,9 @@ import {
 } from "@/components/profile-fields";
 import { Button, Card, DemoBadge, Modal, PageHeader, ProgressBar } from "@/components/ui";
 import { profileCompleteness, profileGaps, withDefaults } from "@/lib/profile";
-import { deleteMyData, switchSlot, useStay } from "@/lib/store";
+import { Avatar, PasswordField } from "@/components/auth";
+import { AuthError, changePassword, MIN_PASSWORD } from "@/lib/accounts";
+import { deleteMyAccount, signOut, switchSlot, useAccount, useStay } from "@/lib/store";
 import type { UserProfile } from "@/lib/types";
 import { todayISO } from "@/lib/utils";
 
@@ -113,7 +115,7 @@ function ProfileEditor({ stored }: { stored: UserProfile }) {
               ))}
               <li>
                 <a href="#data" className="block rounded-lg px-3 py-1.5 text-ink-2 hover:bg-paper-2 hover:text-ink">
-                  Your data
+                  {stored.isDemo ? "Demo controls" : "Account and data"}
                 </a>
               </li>
             </ul>
@@ -147,7 +149,14 @@ function ProfileEditor({ stored }: { stored: UserProfile }) {
           ))}
 
           <div id="data" className="scroll-mt-24">
-            {stored.isDemo ? <DemoControls /> : <DataControls onDelete={() => setConfirmDelete(true)} />}
+            {stored.isDemo ? (
+              <DemoControls />
+            ) : (
+              <div className="space-y-5">
+                <AccountCard onDelete={() => setConfirmDelete(true)} />
+                <DataControls />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -168,9 +177,10 @@ function ProfileEditor({ stored }: { stored: UserProfile }) {
         </div>
       )}
 
-      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete your data?">
+      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete your account?">
         <p className="text-[14px] text-ink-2">
-          This permanently removes your profile, roadmap, notes, interview practice and everything else from this device. The demo isn&apos;t affected. Download a copy first if you might want it back.
+          This permanently removes your account and everything in it from this browser: profile, roadmap, notes, interview practice and the rest. Other accounts and the demo
+          aren&apos;t affected. Download a copy first if you might want it back.
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
@@ -179,12 +189,12 @@ function ProfileEditor({ stored }: { stored: UserProfile }) {
           <Button
             variant="danger"
             onClick={async () => {
-              await deleteMyData();
-              toast("Your data was deleted from this device");
+              await deleteMyAccount();
+              toast("Your account was deleted from this browser");
               router.push("/");
             }}
           >
-            Delete everything
+            Delete my account
           </Button>
         </div>
       </Modal>
@@ -194,6 +204,7 @@ function ProfileEditor({ stored }: { stored: UserProfile }) {
 
 function DemoControls() {
   const router = useRouter();
+  const account = useAccount();
   return (
     <Card className="p-5 sm:p-6">
       <h2 className="font-display text-lg font-semibold">Demo controls</h2>
@@ -211,11 +222,12 @@ function DemoControls() {
         </Button>
         <Button
           onClick={async () => {
+            if (!account) return router.push("/signup");
             const has = await switchSlot("mine");
             router.push(has ? "/dashboard" : "/onboarding");
           }}
         >
-          Go to my own plan
+          {account ? "Go to my own plan" : "Create my account"}
         </Button>
       </div>
     </Card>
@@ -223,7 +235,7 @@ function DemoControls() {
 }
 
 /** Download, restore or delete everything STAY stores for this user. */
-function DataControls({ onDelete }: { onDelete: () => void }) {
+function DataControls() {
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -257,7 +269,7 @@ function DataControls({ onDelete }: { onDelete: () => void }) {
     <Card className="p-5 sm:p-6">
       <h2 className="font-display text-lg font-semibold">Your data</h2>
       <p className="mb-4 text-[13px] text-muted">
-        Everything is stored on this device only. There&apos;s no account yet, so download a copy to move to another device or browser, and restore it there.
+        Your account and plan are saved in this browser only. Download a copy to keep a backup or to move to another device or browser, then restore it there.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" onClick={exportData}>
@@ -277,10 +289,104 @@ function DataControls({ onDelete }: { onDelete: () => void }) {
             e.target.value = "";
           }}
         />
-        <Button variant="ghost" onClick={onDelete} className="text-red-600 hover:bg-red-50">
-          <Trash2 size={16} /> Delete my data
-        </Button>
       </div>
     </Card>
+  );
+}
+
+/** Who is signed in, with log out, change password and delete account. */
+function AccountCard({ onDelete }: { onDelete: () => void }) {
+  const account = useAccount();
+  const router = useRouter();
+  const [pwOpen, setPwOpen] = useState(false);
+  if (!account) return null;
+  return (
+    <Card className="p-5 sm:p-6">
+      <h2 className="font-display text-lg font-semibold">Account</h2>
+      <div className="mb-4 mt-3 flex items-center gap-3">
+        <Avatar name={account.name} />
+        <div className="min-w-0">
+          <div className="truncate text-[14px] font-semibold">{account.name}</div>
+          <div className="truncate text-[13px] text-muted">{account.email}</div>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            await signOut();
+            toast("You've logged out", { description: "Your plan is saved. Sign in any time to pick it up." });
+            router.push("/");
+          }}
+        >
+          <LogOut size={16} /> Log out
+        </Button>
+        <Button variant="secondary" onClick={() => setPwOpen(true)}>
+          <KeyRound size={16} /> Change password
+        </Button>
+        <Button variant="ghost" onClick={onDelete} className="text-red-600 hover:bg-red-50">
+          <Trash2 size={16} /> Delete my account
+        </Button>
+      </div>
+      <ChangePassword open={pwOpen} onClose={() => setPwOpen(false)} />
+    </Card>
+  );
+}
+
+function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState<{ field?: string; message: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const close = () => {
+    setCurrent("");
+    setNext("");
+    setConfirm("");
+    setError(null);
+    onClose();
+  };
+  const err = (f: string) => (error?.field === f ? error.message : undefined);
+  return (
+    <Modal open={open} onClose={close} title="Change password">
+      <form
+        className="space-y-4"
+        noValidate
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          try {
+            await changePassword(current, next, confirm);
+            toast.success("Password changed");
+            close();
+          } catch (x) {
+            setError(x instanceof AuthError ? { field: x.field, message: x.message } : { message: "Something went wrong. Try again." });
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <PasswordField id="pw-current" label="Current password" value={current} onChange={setCurrent} autoComplete="current-password" error={err("current")} />
+        <PasswordField
+          id="pw-new"
+          label="New password"
+          hint={`${MIN_PASSWORD}+ characters, with a number or symbol`}
+          value={next}
+          onChange={setNext}
+          autoComplete="new-password"
+          error={err("password")}
+        />
+        <PasswordField id="pw-confirm" label="Confirm new password" value={confirm} onChange={setConfirm} autoComplete="new-password" error={err("confirm")} />
+        {error && !error.field && <p className="text-[13px] text-red-600">{error.message}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={close}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={busy}>
+            Change password
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

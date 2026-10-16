@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { Badge, buttonClass } from "@/components/ui";
-import { switchSlot, useMyProfile } from "@/lib/store";
+import { toast } from "sonner";
+import { signOut, switchSlot, useAccount, useMyProfile } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 const FEATURES = [
@@ -37,15 +38,20 @@ const FEATURES = [
 export default function Landing() {
   const router = useRouter();
   const mine = useMyProfile();
-  const firstName = mine?.name.split(" ")[0];
+  const account = useAccount();
+  const firstName = (mine?.name || account?.name)?.split(" ")[0];
 
   const tryDemo = async () => {
     await switchSlot("demo");
     router.push("/dashboard");
   };
   const continueMine = async () => {
-    await switchSlot("mine");
-    router.push("/dashboard");
+    const has = await switchSlot("mine");
+    router.push(has ? "/dashboard" : "/onboarding");
+  };
+  const logOut = async () => {
+    await signOut();
+    toast("You've logged out", { description: "Your plan is saved. Sign in any time to pick it up." });
   };
 
   return (
@@ -58,14 +64,24 @@ export default function Landing() {
             <button onClick={tryDemo} className={buttonClass("ghost", "md", "hidden sm:inline-flex")}>
               Try demo
             </button>
-            {mine ? (
-              <button onClick={continueMine} className={buttonClass("primary", "md")}>
-                My plan
-              </button>
+            {account ? (
+              <>
+                <button onClick={logOut} className={buttonClass("ghost", "md")}>
+                  Log out
+                </button>
+                <button onClick={continueMine} className={buttonClass("primary", "md")}>
+                  My plan
+                </button>
+              </>
             ) : (
-              <Link href="/onboarding" className={buttonClass("primary", "md")}>
-                Get started
-              </Link>
+              <>
+                <Link href="/signin" className={buttonClass("ghost", "md")}>
+                  Sign in
+                </Link>
+                <Link href="/signup" className={buttonClass("primary", "md")}>
+                  Get started
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -90,20 +106,32 @@ export default function Landing() {
               want tomorrow: roadmap, opportunities, campus events and coffee chats in one place.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              {mine ? (
+              {account ? (
                 <button onClick={continueMine} className={buttonClass("primary", "lg")}>
-                  Continue{firstName ? ` as ${firstName}` : " my plan"} <ArrowRight size={18} />
+                  {mine ? `Continue${firstName ? ` as ${firstName}` : " my plan"}` : "Build my plan"} <ArrowRight size={18} />
                 </button>
               ) : (
-                <Link href="/onboarding" className={buttonClass("primary", "lg")}>
-                  Build my plan <ArrowRight size={18} />
+                <Link href="/signup" className={buttonClass("primary", "lg")}>
+                  Create my account <ArrowRight size={18} />
                 </Link>
               )}
               <button onClick={tryDemo} className={buttonClass("secondary", "lg")}>
                 Try the demo
               </button>
             </div>
-            <p className="mt-4 text-[13px] text-muted">No account needed · About 5 minutes · Your data stays on this device · The demo never touches your data</p>
+            <p className="mt-4 text-[13px] text-muted">
+              {account === null && (
+                <>
+                  Already have an account?{" "}
+                  <Link href="/signin" className="font-semibold text-ink underline underline-offset-2">
+                    Sign in
+                  </Link>
+                  {" · "}
+                </>
+              )}
+              {account && <>Signed in as {account.email} · </>}
+              Free · About 5 minutes · Saved in your browser · The demo needs no account
+            </p>
           </div>
 
           <HeroCard />
