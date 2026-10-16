@@ -16,6 +16,8 @@ import type { CareerEvent, CareerTrack, EventCategory } from "@/lib/types";
  */
 
 const TTL_MS = 6 * 60 * 60 * 1000;
+/** Bump when the reading logic changes, so cached results from older code aren't reused. */
+const CACHE_VERSION = "3";
 const UA = "Mozilla/5.0 (compatible; STAYbot/1.0; student careers app; +https://github.com/boroudou-star/STAY)";
 const MAX_BYTES = 2_000_000;
 
@@ -36,7 +38,7 @@ g.__stayRobots ??= new Map();
 
 /** Allow/Disallow rules that apply to us (our own group, or "*"), per the robots.txt standard (RFC 9309). */
 async function robotsRules(origin: string): Promise<Rule[]> {
-  const hit = g.__stayRobots!.get(origin);
+  const hit = g.__stayRobots!.get(`${CACHE_VERSION}:${origin}`);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.rules;
   let rules: Rule[] = [];
   try {
@@ -60,7 +62,7 @@ async function robotsRules(origin: string): Promise<Rule[]> {
   } catch {
     rules = []; // no robots.txt reachable: the page fetch itself will show whether we're welcome
   }
-  g.__stayRobots!.set(origin, { at: Date.now(), rules });
+  g.__stayRobots!.set(`${CACHE_VERSION}:${origin}`, { at: Date.now(), rules });
   return rules;
 }
 
@@ -180,7 +182,9 @@ export async function GET(req: Request) {
   const src = universitySources(params.get("uni") ?? (params.get("source") === "ucl-careers" ? "UCL" : ""));
   if (!src) return Response.json({ events: [], sources: [], message: "No verified pages for this university yet" });
 
-  const cached = g.__stayUniEvents!.get(src.name);
+  if (params.get("inspect") !== null) return inspect(src.name, [src.careersEvents, src.careersFairs, src.international, src.unionEvents, src.societies].filter((x): x is UniLink => Boolean(x)), Number(params.get("inspect")));
+  const cacheKey = `${CACHE_VERSION}:${src.name}`;
+  const cached = g.__stayUniEvents!.get(cacheKey);
   if (cached && Date.now() - cached.at < TTL_MS) {
     return Response.json({ events: cached.events, sources: cached.sources, fetchedAt: new Date(cached.at).toISOString(), cached: true }, { headers: { "Cache-Control": "public, s-maxage=21600, stale-while-revalidate=3600" } });
   }
@@ -207,6 +211,37 @@ export async function GET(req: Request) {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 40);
   const sources = results.map((r) => r.status);
-  g.__stayUniEvents!.set(src.name, { at: Date.now(), events, sources });
+  g.__stayUniEvents!.set(cacheKey, { at: Date.now(), events, sources });
   return Response.json({ events, sources, fetchedAt: new Date().toISOString(), cached: false }, { headers: { "Cache-Control": "public, s-maxage=21600, stale-while-revalidate=3600" } });
+}
+
+/**
+ * Diagnostics for improving the readers: shows the links and dates STAY sees on one of the university's
+ * own listed pages (only those, so this can't be used to fetch arbitrary sites).
+ */
+async function inspect(uni: string, links: UniLink[], i: number) {
+  const link = links[i];
+  if (!link) return Response.json({ error: "no such source" }, { status: 404 });
+  const url = new URL(link.url);
+  const rule = await disallowedBy(url);
+  if (rule) return Response.json({ uni, url: link.url, disallowedBy: rule, rules: await robotsRules(url.origin) });
+  const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(9000) }).catch(() => null);
+  if (!res) return Response.json({ uni, url: link.url, error: "unreachable" });
+  const html = (await res.text()).slice(0, MAX_BYTES);
+  const anchors = [...html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+    .map((m) => `${m[1]} | ${stripTags(m[2]).slice(0, 80)}`)
+    .filter((x) => /event|whats|ents|calendar|fair|book/i.test(x))
+    .slice(0, 40);
+  return Response.json({
+    uni,
+    url: link.url,
+    status: res.status,
+    finalUrl: res.url,
+    bytes: html.length,
+    hasJsonLd: /application\/ld\+json/i.test(html),
+    jsonLdTypes: [...html.matchAll(/"@type"\s*:\s*"([^"]+)"/g)].map((m) => m[1]).slice(0, 15),
+    feeds: [...html.matchAll(/<link[^>]+(?:rss|atom|calendar|ics)[^>]*>/gi)].map((m) => m[0]).slice(0, 5),
+    anchors,
+    textSample: stripTags(html).slice(0, 1500),
+  });
 }
