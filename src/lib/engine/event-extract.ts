@@ -200,7 +200,7 @@ export function extractEvents(html: string, pageUrl: string, today: string): Raw
 /* ------------------------------------------------------------------ */
 
 const CAREER =
-  /\b(careers?|employ(er|ers|ability|ment)|careers fair|jobs fair|internships?|placements?|graduate|insight|networking|panel|talk|speakers?|lecture|seminar|symposium|conference|summit|hackathon|case (study|competition|workshop)|cv|interviews?|recruit\w*|industry|alumni|mentor\w*|start-?ups?|entrepreneur\w*|pitch|consult\w*|invest\w*|banking|trading|fintech|coding|data science|data|ai|machine learning|pharma\w*|biotech|healthcare|health tech|medtech|law firm|policy|research|sustainab\w*|climate|marketing|leadership|economics|finance|tech|engineering|workshop)\b/i;
+  /\b(careers?|employ(er|ers|ability|ment)|careers fair|jobs fair|internships?|placements?|graduate|insight|networking|panel|talk|speakers?|lecture|seminar|symposium|conference|summit|hackathon|case (study|competition|workshop)|cv|interviews?|recruit\w*|industry|alumni|mentor\w*|start-?ups?|entrepreneur\w*|pitch|consult\w*|invest\w*|banking|trading|fintech|coding|data science|data|ai|machine learning|pharma\w*|biotech|healthcare|health tech|medtech|law firm|policy|research|sustainab\w*|climate|marketing|leadership|economics|finance|tech|engineering)\b/i;
 const NIGHTLIFE =
   /\b(night|party|social|club ?night|karaoke|quiz|bingo|pub|crawl|rave|ball|gig|dj|cocktail|drag|trip|tour|sport|fitness|yoga|football|rugby|netball|hockey|padel|tennis|climbing|hike|swim|run club|games|movie|film|bake|coffee morning|craft|novices)\b/i;
 

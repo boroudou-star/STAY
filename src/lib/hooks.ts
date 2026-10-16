@@ -100,7 +100,7 @@ export function useLiveEvents(university: string) {
   useEffect(() => {
     if (!known) return;
     let cancelled = false;
-    fetch(`/api/events/live?uni=${encodeURIComponent(university)}`)
+    fetch(`/api/events/live?uni=${encodeURIComponent(university)}&v=3`)
       .then((r) => r.json())
       .then((data: { events?: CareerEvent[]; sources?: LiveSourceStatus[]; fetchedAt?: string; message?: string }) => {
         if (cancelled) return;

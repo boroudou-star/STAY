@@ -78,3 +78,10 @@ describe("robots.txt", () => {
     expect(robotsAllow([{ allow: false, path: "/" }], "/anything")).toBe(false);
   });
 });
+
+describe("union events that aren't about careers", () => {
+  it("drops general workshops but keeps employability ones", () => {
+    expect(isCareerRelevant("Consent & Bystander Intervention Workshop", "union")).toBe(false);
+    expect(isCareerRelevant("Employability Week: Balancing Work and Study Panel", "union")).toBe(true);
+  });
+});
